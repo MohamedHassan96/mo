@@ -144,6 +144,7 @@ export function usePeerConnection(opts: Options) {
         console.log('📡 P2P Data Received:', msg.type);
         if (msg.type === 'chat') cbRef.current.onChatMessage(msg.payload);
         if (msg.type === 'transcript') cbRef.current.onTranscriptReceived?.(msg.payload);
+        if (msg.type === 'participant-update') cbRef.current.onParticipantUpdate(msg.payload);
       });
     });
 

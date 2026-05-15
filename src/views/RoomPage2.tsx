@@ -239,7 +239,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const {
     isReady: isPeerReady, error: peerError, connectedPeers, connectToHost, setLocalStream: setPeerLocalStream,
-    disconnect: peerDisconnect
+    disconnect: peerDisconnect, sendP2PData
   } = usePeerConnection({
     roomId, isHost: role === 'host',
     myId: myPeerId,
@@ -265,7 +265,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onTranscriptReceived: handleTranscriptReceived,
   });
 
-  const { sendP2PData } = peerHook;
 
   const prevPeersRef = useRef<string[]>([]);
   useEffect(() => {
