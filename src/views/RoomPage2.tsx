@@ -11,10 +11,10 @@ import VideoGrid from '@/ui/VideoGrid';
 import SidePanel from '@/ui/SidePanel';
 import MeetingControls from '@/ui/MeetingControls';
 import MicStatusIndicator from '@/ui/MicStatusIndicator';
-import { playJoinSound, playMessageSound, playScreenShareSound, playLeaveSound } from '@/utils/sounds';
+import { playJoinSound, playMessageSound } from '@/utils/sounds';
 import {
   Mic, MicOff, Video, VideoOff, Copy, Check, UserPlus, Radio, ArrowRight,
-  Loader2, Link2, Share2, Users, X, Zap, Sparkles
+  Link2, Share2, Users, X, Zap, Sparkles
 } from 'lucide-react';
 import type { ParticipantRole, ChatMessage, Participant, TranscriptEntry } from '@/types';
 
@@ -54,7 +54,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const myLanguageRef = useRef(myLanguage);
   useEffect(() => { myLanguageRef.current = myLanguage; }, [myLanguage]);
-  
+
   const participantIdRef = useRef(participantId);
   useEffect(() => { participantIdRef.current = participantId; }, [participantId]);
 
@@ -65,11 +65,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const shouldListenRef = useRef(false);
 
   // ─── Stores & Hooks ───────────────────────────────────────────────
-  const { processRecognizedText, speakText } = useRealtimeTranslation();
+  const { processRecognizedText } = useRealtimeTranslation();
   const {
     processingStatus, sidePanelOpen, participants,
     setMicOn, setCameraOn, addParticipant, updateParticipant,
-    removeParticipant, addChatMessage, setMyId: setStoreMyId,
+    addChatMessage, setMyId: setStoreMyId,
     setProcessingStatus, createRoom, leaveRoom, setLocalStream,
     setRemoteStream, addTranscript, updateTranscript
   } = useRoomStore();
@@ -80,7 +80,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = stream;
       remoteAudioRef.current.muted = false; // الصوت الأصلي للطرف الآخر
-      remoteAudioRef.current.play().catch(() => {});
+      remoteAudioRef.current.play().catch(() => { });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setRemoteStream]);
@@ -92,18 +92,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addChatMessage, participantId]);
 
-  const handleParticipantUpdate = useCallback((participant: Participant) => {
-    const prev = useRoomStore.getState().participants.find(p => p.id === participant.id);
-    if (prev && !prev.isScreenSharing && participant.isScreenSharing) playScreenShareSound();
-    addParticipant(participant);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addParticipant]);
 
-  const handleParticipantLeft = useCallback((peerId: string) => {
-    removeParticipant(peerId);
-    playLeaveSound();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [removeParticipant]);
 
   const handleConnectionChange = useCallback((connected: boolean) => {
     if (connected) setPhase(prev => prev === 'connecting' ? 'active' : prev);
@@ -185,8 +174,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [updateTranscript, setProcessingStatus]);
 
   const {
-    isReady: isSocketReady,
-    error: socketError,
     sendChatMessage: socketSendChat,
     sendTranscript: socketSendTranscript,
     disconnect: socketDisconnect
@@ -211,12 +198,12 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     roomId, isHost: role === 'host',
     enabled: phase !== 'setup',
     onRemoteStream: handleRemoteStream,
-    onChatMessage: () => {}, // Handled by Socket.IO
-    onParticipantUpdate: () => {}, // Handled by Socket.IO
-    onParticipantLeft: () => {}, // Handled by Socket.IO
+    onChatMessage: () => { }, // Handled by Socket.IO
+    onParticipantUpdate: () => { }, // Handled by Socket.IO
+    onParticipantLeft: () => { }, // Handled by Socket.IO
     onConnectionChange: handleConnectionChange,
-    onPeerConnected: () => {}, 
-    onTranscriptReceived: () => {}, // Handled by Socket.IO
+    onPeerConnected: () => { },
+    onTranscriptReceived: () => { }, // Handled by Socket.IO
   });
 
   const prevPeersRef = useRef<string[]>([]);
@@ -241,7 +228,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         setTimeout(() => setCopied(false), 3000);
         return;
       }
-    } catch {}
+    } catch { }
     const textArea = document.createElement('textarea');
     textArea.value = link;
     textArea.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
@@ -258,7 +245,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const handleShareLink = useCallback(async () => {
     const link = getInviteLink();
     if (navigator.share) {
-      try { await navigator.share({ title: 'انضم للاجتماع', url: link }); return; } catch {}
+      try { await navigator.share({ title: 'انضم للاجتماع', url: link }); return; } catch { }
     }
     handleCopyLink();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -340,7 +327,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     addParticipant(myParticipant);
     setMicOn(enableMic);
     setCameraOn(enableCamera);
-    
+
     const stream = await getMediaStream();
     if (stream) {
       setPeerLocalStream(stream);
@@ -349,7 +336,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     const ttsPlayer = document.getElementById('tts-audio-player') as HTMLAudioElement;
     if (ttsPlayer) {
       ttsPlayer.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXv7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/////////////wAAAEhMYXZjNTkuMzcuMTAwAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs9SR+AAAAAAAAAAAAAAAAAAAA//OEAQAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OEAwAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OEBAAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
-      ttsPlayer.play().catch(() => {});
+      ttsPlayer.play().catch(() => { });
     }
 
     if (enableMic && isSupported) {
@@ -411,7 +398,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/80 backdrop-blur-md p-4 animate-fade-in" onClick={() => setShowInviteModal(false)}>
       <div className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-[32px] p-8 shadow-[0_0_80px_rgba(255,77,0,0.15)]" onClick={e => e.stopPropagation()}>
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#FF4D00]/50 to-transparent" />
-        
+
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FF4D00] to-[#ff7a40] flex items-center justify-center shadow-lg shadow-[#FF4D00]/20">
@@ -457,7 +444,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         {/* Left: Video Preview (Glassmorphism) */}
         <div className="lg:col-span-7 rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden relative aspect-[4/3] lg:aspect-video flex items-center justify-center group">
           <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-700 ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
-          
+
           {!enableCamera && (
             <div className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-white/5 flex items-center justify-center shadow-2xl relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[#FF4D00] to-[#ff7a40] opacity-20 blur-xl rounded-full" />
@@ -494,7 +481,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         {/* Right: Settings Card */}
         <div className="lg:col-span-5 rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-8 flex flex-col relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#FF4D00]/30 to-transparent" />
-          
+
           <div className="flex-1 flex flex-col justify-center space-y-8">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF4D00]/20 to-transparent border border-[#FF4D00]/20 mb-4">
@@ -539,7 +526,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const renderConnecting = () => (
     <div className="relative min-h-[calc(100dvh-4rem)] flex items-center justify-center p-4 bg-[#050505] overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#FF4D00]/10 rounded-full blur-[100px] animate-pulse" />
-      
+
       <div className="relative z-10 text-center max-w-md animate-fade-up">
         <div className="relative w-24 h-24 mx-auto mb-8">
           <div className="absolute inset-0 border-4 border-[#FF4D00]/20 rounded-full" />
@@ -548,10 +535,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             <Radio className="w-8 h-8 text-[#FF4D00] animate-pulse" />
           </div>
         </div>
-        
+
         <h2 className="text-3xl font-black text-white mb-4 tracking-tight">{role === 'host' ? 'في انتظار الضيف...' : 'جاري الاتصال الآمن...'}</h2>
         <p className="text-gray-400">يتم إنشاء نفق اتصال P2P مشفر وربط الصوت المترجم</p>
-        
+
         {role === 'host' && (
           <div className="mt-10 p-6 bg-white/5 backdrop-blur-xl rounded-[32px] border border-white/10 shadow-2xl">
             <div className="flex items-center gap-3 mb-6">
@@ -579,7 +566,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       {/* Top Glass Header */}
       <div className="bg-white/5 backdrop-blur-2xl border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row items-center justify-between z-40 shadow-sm relative">
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        
+
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-2xl border border-white/5">
             <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-[#FF4D00]'} animate-pulse`} />
@@ -608,17 +595,17 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         <div className="flex-1 min-h-0 rounded-[32px] overflow-hidden border border-white/5 relative bg-[#0a0a0a]">
           <VideoGrid />
         </div>
-        
+
         {/* Sleek Integrated SidePanel */}
         {sidePanelOpen && (
           <div className="w-full lg:w-[400px] h-full rounded-[32px] overflow-hidden bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col z-40 animate-fade-in">
-            <SidePanel 
-              myId={participantId} 
-              myName={name || (role === 'host' ? 'المضيف' : 'الضيف')} 
-              myRole={role} 
-              myLanguage={myLanguage} 
-              partnerLanguage={partnerLanguage} 
-              onSendMessage={(msg) => { addChatMessage(msg); socketSendChat(msg); }} 
+            <SidePanel
+              myId={participantId}
+              myName={name || (role === 'host' ? 'المضيف' : 'الضيف')}
+              myRole={role}
+              myLanguage={myLanguage}
+              partnerLanguage={partnerLanguage}
+              onSendMessage={(msg) => { addChatMessage(msg); socketSendChat(msg); }}
             />
           </div>
         )}
