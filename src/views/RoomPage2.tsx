@@ -120,64 +120,40 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       translatedLanguage: data.translatedLanguage
     });
 
-    const textToSpeak = data.translatedText || data.originalText;
-    if (!textToSpeak) return;
-
+    if (!data.audioBase64) return;
+    
     setProcessingStatus({ stage: 'synthesizing', message: 'الطرف الآخر يتحدث...' });
     const wasListening = isListeningRef.current;
     if (wasListening) stopListeningRef.current?.();
 
-    const resumeMic = () => {
-      if (wasListening) {
-        setTimeout(() => {
+    const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
+    if (audio) {
+      audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
+      audio.onended = () => {
+        if (wasListening) {
+          setTimeout(() => {
+            startListeningRef.current?.();
+            setMicOn(true);
+            setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
+          }, 300);
+        } else {
+          setProcessingStatus({ stage: 'idle', message: '' });
+        }
+      };
+      audio.play().catch((err) => {
+        console.error('Audio play error:', err);
+        // Fallback: resume mic even if audio fails to play
+        if (wasListening) {
           startListeningRef.current?.();
           setMicOn(true);
           setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
-        }, 300);
-      } else {
-        setProcessingStatus({ stage: 'idle', message: '' });
-      }
-    };
-
-    const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
-
-    // ─── ElevenLabs audio (from server) ───────────────────────────
-    if (data.audioBase64 && audio) {
-      audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
-      audio.onended = resumeMic;
-      audio.onerror = () => {
-        console.warn('ElevenLabs audio failed, falling back to browser TTS');
-        browserTTSFallback(textToSpeak, data.translatedLanguage, resumeMic);
-      };
-      audio.play().catch(() => {
-        console.warn('Audio play blocked, falling back to browser TTS');
-        browserTTSFallback(textToSpeak, data.translatedLanguage, resumeMic);
+        } else {
+          setProcessingStatus({ stage: 'idle', message: '' });
+        }
       });
-      return;
     }
-
-    // ─── Browser TTS Fallback ──────────────────────────────────────
-    console.log('🔊 No audioBase64 from server — using browser TTS fallback');
-    browserTTSFallback(textToSpeak, data.translatedLanguage, resumeMic);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateTranscript, setProcessingStatus, setMicOn]);
-
-  // Browser TTS fallback helper
-  const browserTTSFallback = useCallback((text: string, language: string, onEnd: () => void) => {
-    if (!('speechSynthesis' in window)) { onEnd(); return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === 'ar' ? 'ar-EG' : language;
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang.startsWith(language === 'ar' ? 'ar' : language));
-    if (voice) utterance.voice = voice;
-    utterance.onend = onEnd;
-    utterance.onerror = onEnd;
-    window.speechSynthesis.speak(utterance);
-  }, []);
 
   const {
     isReady: isSocketReady,

@@ -43,17 +43,15 @@ export function useRealtimeTranslation() {
 4. حافظ على سرعة المعنى ودقته لأن هذا التطبيق يستخدم للترجمة الفورية أثناء المكالمات.
 5. لا تضف علامات ترقيم إذا كان النص الأصلي غير مكتمل.`;
 
-    const apiKey = config.groqApiKey || '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';
-
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer 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`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.1-8b-instant', // أسرع نموذج
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: text },
@@ -63,12 +61,10 @@ export function useRealtimeTranslation() {
         }),
       });
 
-      if (!response.ok) throw new Error(`Translation failed: ${response.status}`);
+      if (!response.ok) throw new Error('Translation failed');
       
       const data = await response.json();
-      const result = data.choices?.[0]?.message?.content?.trim() || text;
-      console.log(`✅ [Frontend] Translated: "${text.substring(0,30)}" → "${result.substring(0,30)}"`);
-      return result;
+      return data.choices?.[0]?.message?.content?.trim() || text;
     } catch (err) {
       console.error('Translation error:', err);
       return text;
@@ -166,7 +162,7 @@ export function useRealtimeTranslation() {
   // منع تكرار الترجمة: نتتبع النص الأخير الذي تمت ترجمته
   const lastTranslatedTextRef = useRef<string>('');
 
-  // الدالة الفعلية للإرسال — تترجم محلياً وترسل للسيرفر لعمل TTS
+  // الدالة الفعلية للإرسال (الترجمة والصوت تتم في السيرفر الآن)
   const translateAndSend = useCallback(async (
     text: string,
     options: TranslationOptions,
@@ -178,17 +174,9 @@ export function useRealtimeTranslation() {
     processingRef.current = true;
     lastTranslatedTextRef.current = text.trim();
 
-    const { speakerId, speakerName, speakerRole, sourceLanguage, targetLanguage } = options;
+    const { speakerId, speakerName, speakerRole, sourceLanguage } = options;
 
     try {
-      setProcessingStatus({ stage: 'translating', message: 'جاري الترجمة...' });
-
-      // ترجمة النص فعليًا قبل الإرسال
-      let translatedText = text;
-      if (sourceLanguage !== targetLanguage) {
-        translatedText = await translateText(text, sourceLanguage, targetLanguage);
-      }
-
       const entry: TranscriptEntry = {
         id: uuid(),
         speakerId,
@@ -196,14 +184,13 @@ export function useRealtimeTranslation() {
         speakerRole,
         originalText: text,
         originalLanguage: sourceLanguage,
-        translatedText,
-        translatedLanguage: targetLanguage,
+        translatedText: text,
+        translatedLanguage: sourceLanguage,
         timestamp: Date.now(),
       };
 
       addTranscript(entry);
 
-      // أرسل للسيرفر عشان يعمل TTS للطرف الآخر
       if (onTranslationComplete) {
         onTranslationComplete(entry);
       }
@@ -212,9 +199,10 @@ export function useRealtimeTranslation() {
 
     } catch (err) {
       console.error('Processing error:', err);
-      setProcessingStatus({ stage: 'error', message: 'خطأ في الترجمة' });
+      setProcessingStatus({ stage: 'error', message: 'خطأ' });
     } finally {
       processingRef.current = false;
+      // بعد ثانيتين، أعد تعيين النص المترجم للسماح بترجمة جملة مشابهة لاحقاً
       setTimeout(() => { lastTranslatedTextRef.current = ''; }, 2000);
     }
   }, [translateText, addTranscript, setProcessingStatus]);
