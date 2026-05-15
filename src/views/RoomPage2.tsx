@@ -140,23 +140,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       }
     };
 
-    const speakWithWebSpeech = (text: string, lang: string): Promise<void> =>
-      new Promise((resolve) => {
-        if (!('speechSynthesis' in window)) { resolve(); return; }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = LANG_TO_LOCALE[lang] || lang;
-        utterance.rate = 1.05;
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        const voices = window.speechSynthesis.getVoices();
-        if (voices.length === 0) {
-          window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.speak(utterance);
-        } else {
-          window.speechSynthesis.speak(utterance);
-        }
-      });
-
     // شغّل الصوت (ElevenLabs أو Web Speech) بدون إيقاف الميكروفون
     if (data.audioBase64) {
       const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
