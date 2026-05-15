@@ -112,7 +112,10 @@ function setupSocketIO(httpServer: any) {
   httpServer[INIT_KEY] = true;
   console.log('[Socket] Socket.IO server initialized');
 
-  const io = new Server(httpServer, { cors: { origin: '*' } });
+  const io = new Server(httpServer, {
+    path: '/api/socket.io',
+    cors: { origin: '*' }
+  });
 
   io.on('connection', (socket) => {
     console.log(`[Socket] + Connected: ${socket.id}`);

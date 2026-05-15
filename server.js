@@ -14,13 +14,19 @@ app.use(cors());
 // Serve Vite's static build files (Frontend)
 app.use(express.static(path.join(__dirname, 'dist')));
 
+// Debug: Catch if socket requests fall through to Express
+app.use('/api/socket.io', (req, res, next) => {
+  console.error('[Express] ERROR: /api/socket.io request fell through to Express! Engine.IO did not intercept it. Headers:', req.headers);
+  res.status(500).json({ error: 'Socket.IO failed to intercept request' });
+});
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
+  path: '/api/socket.io',
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  },
-  transports: ['websocket', 'polling']
+  }
 });
 
 // Debug: Log all connection attempts
