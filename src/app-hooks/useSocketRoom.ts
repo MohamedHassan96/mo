@@ -19,7 +19,7 @@ interface UseSocketRoomProps {
 
 export function useSocketRoom(opts: UseSocketRoomProps) {
   const [isReady, setIsReady] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   // BUG-FIX-9: queue transcripts when offline and flush on reconnect
   const pendingTranscriptsRef = useRef<TranscriptEntry[]>([]);
