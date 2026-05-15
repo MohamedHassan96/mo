@@ -60,7 +60,18 @@ export function usePeerConnection(opts: Options) {
 
     console.log(`🔗 Peer: ${peerId} (${opts.isHost ? 'HOST' : 'GUEST'})`);
 
-    const peer = new Peer(peerId, { debug: 1 });
+    const peer = new Peer(peerId, {
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+        ],
+      }
+    });
     peerRef.current = peer;
 
     const readyTimer = setTimeout(() => { setIsReady(true); }, 5000);
@@ -116,7 +127,10 @@ export function usePeerConnection(opts: Options) {
       clearTimeout(readyTimer);
       setIsReady(true);
       if (err.type === 'unavailable-id') setError(opts.isHost ? 'الغرفة مستخدمة بالفعل' : null);
-      else if (err.type === 'peer-unavailable') setError('المضيف غير متصل');
+      else if (err.type === 'peer-unavailable') {
+        console.warn('[Peer] Target peer not found, will retry if Socket.IO syncs it again.');
+        // Don't set error yet, it might be a temporary sync delay
+      }
     });
 
     peer.on('disconnected', () => {
@@ -155,7 +169,7 @@ export function usePeerConnection(opts: Options) {
 
       call.on('stream', (remoteStream) => {
         console.log('🎥 Guest got host stream');
-        cbRef.current.onRemoteStream(remoteStream, hostId);
+        cbRef.current.onRemoteStream(remoteStream, targetHostId);
         setRemoteStream(remoteStream);
       });
 

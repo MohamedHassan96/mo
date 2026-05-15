@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { useRoomStore } from '@/state/roomStore';
 import type { Participant, ChatMessage, TranscriptEntry } from '@/types';
 
-const SOCKET_SERVER_URL = '';
+const SOCKET_SERVER_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 interface UseSocketRoomProps {
   roomId: string;
@@ -32,9 +32,12 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
   useEffect(() => {
     if (!opts.enabled) return;
 
-    const socket = io(SOCKET_SERVER_URL, {
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
+    console.log(`🔌 Attempting WebSocket connection...`);
+    const socket = io({
+      transports: ['websocket'],
+      reconnectionAttempts: 20,
+      reconnectionDelay: 2000,
+      timeout: 20000,
     });
     socketRef.current = socket;
 

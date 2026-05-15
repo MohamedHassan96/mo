@@ -19,7 +19,13 @@ const io = new Server(httpServer, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  transports: ['websocket', 'polling']
+});
+
+// Debug: Log all connection attempts
+io.engine.on("connection_error", (err) => {
+  console.log(`[Socket.IO Engine Error] Code: ${err.code}, Message: ${err.message}, Context:`, err.context);
 });
 
 // Canonical Room State: Record<roomId, Record<socketId, Participant>>
@@ -90,7 +96,7 @@ async function generateTTS(text, language) {
 }
 
 io.on('connection', (socket) => {
-  console.log(`[Socket] Connected: ${socket.id}`);
+  console.log(`[Socket] +++ New connection request: ${socket.id} from ${socket.handshake.address}`);
 
   // 1. Join Room & Canonical State Sync
   socket.on('join-room', (payload, callback) => {
