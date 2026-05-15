@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useRoomStore } from '@/state/roomStore';
 import { useWebSpeechRecognition } from '@/app-hooks/useWebSpeechRecognition';
@@ -42,8 +42,9 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [partnerLanguage, setPartnerLanguage] = useState(role === 'host' ? 'en' : 'ar');
   const [copied, setCopied] = useState(false);
   const [participantId] = useState(() => uuid());
+  const normalizedRoomId = roomId.trim().toLowerCase();
   // We use a predictable ID for the host's PeerJS to avoid signaling delays in production
-  const myPeerId = role === 'host' ? roomId.trim().toLowerCase() : `guest-${uuid().slice(0, 8)}`;
+  const myPeerId = useMemo(() => role === 'host' ? normalizedRoomId : `guest-${uuid().slice(0, 8)}`, [role, normalizedRoomId]);
   
   const [enableCamera, setEnableCamera] = useState(true);
   const [enableMic, setEnableMic] = useState(true);
@@ -221,9 +222,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [connectedPeers]);
 
   // ─── Link Helpers ────────────────────────────────────────────────
-  // Normalize roomId to lowercase for consistent P2P and Socket discovery
-  const normalizedRoomId = roomId.trim().toLowerCase();
-  
   const getInviteLink = useCallback(() => `${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`, [normalizedRoomId]);
 
   const handleCopyLink = useCallback(async () => {
