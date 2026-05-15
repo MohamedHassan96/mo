@@ -75,7 +75,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   } = useRoomStore();
 
   // ─── Peer Connection Handlers ────────────────────────────────────
-  const handleRemoteStream = useCallback((stream: MediaStream) => {
+  const handleRemoteStream = useCallback((stream: MediaStream, _peerId?: string) => {
     setRemoteStream(stream);
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = stream;
