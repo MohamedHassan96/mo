@@ -43,7 +43,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [copied, setCopied] = useState(false);
   const [participantId] = useState(() => uuid());
   // We use a predictable ID for the host's PeerJS to avoid signaling delays in production
-  const myPeerId = role === 'host' ? roomId : `guest-${uuid().slice(0, 8)}`;
+  const myPeerId = role === 'host' ? roomId.trim().toLowerCase() : `guest-${uuid().slice(0, 8)}`;
   
   const [enableCamera, setEnableCamera] = useState(true);
   const [enableMic, setEnableMic] = useState(true);
@@ -179,7 +179,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     sendTranscript: socketSendTranscript,
     disconnect: socketDisconnect
   } = useSocketRoom({
-    roomId,
+    roomId: normalizedRoomId,
     participant: {
       id: participantIdRef.current,
       name: name || (role === 'host' ? 'المضيف' : 'الضيف'),
@@ -198,9 +198,9 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     isReady: isPeerReady, error: peerError, connectedPeers, connectToHost, setLocalStream: setPeerLocalStream,
     disconnect: peerDisconnect
   } = usePeerConnection({
-    roomId, isHost: role === 'host',
+    roomId: normalizedRoomId, isHost: role === 'host',
     myId: myPeerId,
-    hostId: roomId, // Predictable Host ID
+    hostId: normalizedRoomId, // Predictable Host ID
     enabled: phase !== 'setup',
     onRemoteStream: handleRemoteStream,
     onChatMessage: () => { }, // Handled by Socket.IO
@@ -501,6 +501,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             </div>
 
             <div className="space-y-5">
+              <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-400 px-1">كود الغرفة</label>
                 <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} dir="ltr" className="w-full px-5 py-4 rounded-[20px] bg-black/40 border border-white/10 text-white placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all lowercase" />
               </div>
