@@ -85,6 +85,17 @@ export function useRealtimeTranslation() {
           console.error('ElevenLabs TTS error:', err);
         }
 
+        // Fallback: Web Speech Synthesis
+        if ('speechSynthesis' in window) {
+          await new Promise<void>((res) => {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = language === 'ar' ? 'ar-EG' : language;
+            utterance.rate = 1.0;
+            utterance.onend = () => res();
+            utterance.onerror = () => res();
+            window.speechSynthesis.speak(utterance);
+          });
+        }
         resolve();
       };
 

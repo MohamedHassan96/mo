@@ -40,7 +40,7 @@ CRITICAL RULES:
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY || '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'}`,
+        'Authorization': 'Bearer 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',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -67,13 +67,18 @@ CRITICAL RULES:
 
 async function generateTTS(text: string, language: string): Promise<string> {
   if (!text?.trim()) return '';
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'c06fdbaa06e04b6cbe80fb460336f064';
+  let voiceId: string;
+  if (language === 'ar')      voiceId = 'cjVigY5qzO86Huf0OWal';
+  else if (language === 'fr') voiceId = 'VR6AewLTigWG4xSOukaG';
+  else if (language === 'de') voiceId = 'onwK4e9ZLuTAKqWW03F9';
+  else if (language === 'es') voiceId = 'MF3mGyEYCl7XYWbV9V6O';
+  else                        voiceId = 'EXAVITQu4vr4xnSDxMaL';
 
   try {
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
-        'xi-api-key': process.env.ELEVENLABS_API_KEY || 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
+        'xi-api-key': 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -205,9 +210,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  define: {
-    'process.env.GROQ_API_KEY': JSON.stringify(process.env.GROQ_API_KEY || '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')
-  },
   plugins: [
     react(),
     tailwindcss(),

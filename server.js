@@ -39,7 +39,7 @@ RULES:
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY || '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'}`,
+        'Authorization': `Bearer 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`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -63,13 +63,13 @@ RULES:
 // Helper: TTS API
 async function generateTTS(text, language) {
   if (!text) return '';
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'c06fdbaa06e04b6cbe80fb460336f064';
+  const voiceId = language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL';
   
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'xi-api-key': process.env.ELEVENLABS_API_KEY || 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
+        'xi-api-key': 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
