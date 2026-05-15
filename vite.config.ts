@@ -115,6 +115,7 @@ function setupSocketIO(httpServer: any) {
   const io = new Server(httpServer, {
     path: '/api/socket.io',
     addTrailingSlash: false,
+    allowEIO3: true,
     cors: { origin: '*' }
   });
 

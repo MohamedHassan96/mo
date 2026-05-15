@@ -24,9 +24,11 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   path: '/api/socket.io',
   addTrailingSlash: false,
+  allowEIO3: true,
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: ["http://localhost:5173", "https://mo-production-fd5e.up.railway.app"],
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -207,3 +209,9 @@ const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`[Socket.IO Backend & Frontend] Running on http://0.0.0.0:${PORT}`);
 });
+
+// Low-level debugging
+httpServer.on('upgrade', (req, socket, head) => {
+  console.log(`[HTTP Upgrade Attempt] URL: ${req.url}, Headers:`, req.headers);
+});
+

@@ -35,7 +35,6 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     console.log(`🔌 Attempting Socket.IO connection to ${SOCKET_SERVER_URL}/api/socket.io`);
     const socket = io(SOCKET_SERVER_URL, {
       path: '/api/socket.io',
-      transports: ['websocket', 'polling'],
       reconnectionAttempts: 20,
       reconnectionDelay: 2000,
       timeout: 20000,
