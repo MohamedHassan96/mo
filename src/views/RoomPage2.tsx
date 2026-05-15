@@ -193,6 +193,38 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onTranslatedAudio: handleTranslatedAudio
   });
 
+  // REST Fallback for Translation & TTS
+  const translateRest = async (text: string, sourceLang: string, targetLang: string) => {
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, sourceLang, targetLang })
+      });
+      const data = await res.json();
+      return data.translated;
+    } catch (err) {
+      console.error('REST Translation fallback error:', err);
+      return text;
+    }
+  };
+
+  const ttsRest = async (text: string, language: string) => {
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, language })
+      });
+      const data = await res.json();
+      return data.audioBase64;
+    } catch (err) {
+      console.error('REST TTS fallback error:', err);
+      return '';
+    }
+  };
+
+
   const hostParticipant = participants.find(p => p.role === 'host');
 
   const {
@@ -257,17 +289,25 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [getInviteLink, handleCopyLink]);
 
   // ─── Speech & Media ──────────────────────────────────────────────
-  const handleSpeechResult = useCallback((text: string, isFinal: boolean) => {
+  const handleSpeechResult = useCallback(async (text: string, isFinal: boolean) => {
     processRecognizedText(text, isFinal, {
       speakerId: participantId, speakerName: name || (role === 'host' ? 'المضيف' : 'الضيف'),
       speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage,
-    }, (entry) => {
-      // Ensure originalLanguage is always set correctly before sending to server
+    }, async (entry) => {
       const enrichedEntry = { ...entry, originalLanguage: myLanguage };
+      
+      // 1. Try sending via Socket.IO
       socketSendTranscript(enrichedEntry);
+
+      // 2. Fallback logic: If alone in room or socket disconnected, we can still show local translation
+      if (isFinal && participants.length === 1) {
+        // Just for visual feedback when alone
+        const translated = await translateRest(entry.originalText, myLanguage, partnerLanguage);
+        updateTranscript(entry.id, { translatedText: translated, translatedLanguage: partnerLanguage });
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript]);
+  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript, participants.length]);
 
   const { isListening, isSupported, startListening, stopListening } = useWebSpeechRecognition({
     language: myLanguage, continuous: true, interimResults: true,

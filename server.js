@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
+app.use(express.json({ limit: '10mb' })); // Allow large transcripts/audio if needed
+
 
 // Serve Vite's static build files (Frontend)
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -95,6 +97,20 @@ async function generateTTS(text, language) {
   }
   return '';
 }
+
+// REST API Fallbacks (Guaranteed to work on Railway)
+app.post('/api/translate', async (req, res) => {
+  const { text, sourceLang, targetLang } = req.body;
+  const translated = await translateText(text, sourceLang, targetLang);
+  res.json({ translated });
+});
+
+app.post('/api/tts', async (req, res) => {
+  const { text, language } = req.body;
+  const audioBase64 = await generateTTS(text, language);
+  res.json({ audioBase64 });
+});
+
 
 io.on('connection', (socket) => {
   console.log(`[Socket] +++ New connection request: ${socket.id} from ${socket.handshake.address}`);
