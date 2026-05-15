@@ -71,12 +71,15 @@ export function usePeerConnection(opts: Options) {
       const pid = call.peer;
       console.log(`📞 Incoming call from: ${pid}`);
 
+      // IMPORTANT: Always reuse the existing local stream.
+      // Calling getUserMedia() here causes Web Speech Recognition to abort
+      // because Chrome sees two concurrent mic requests and kills the STT session.
       const stream = localStreamRef.current;
-      if (stream) call.answer(stream);
-      else {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(s => { localStreamRef.current = s; call.answer(s); })
-          .catch(() => call.answer());
+      if (stream) {
+        call.answer(stream);
+      } else {
+        // Only fallback if we truly have no stream yet (shouldn't happen in normal flow)
+        call.answer(); // answer without stream to avoid mic conflict
       }
 
       const upsert = () => {

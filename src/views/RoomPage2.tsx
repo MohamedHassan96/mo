@@ -26,6 +26,14 @@ interface RoomPageProps {
 
 type RoomPhase = 'setup' | 'connecting' | 'active';
 
+// BCP-47 locale map for Web Speech Synthesis \u2014 defined once at module level
+const LANG_TO_LOCALE: Record<string, string> = {
+  ar: 'ar-EG', en: 'en-US', fr: 'fr-FR', de: 'de-DE',
+  es: 'es-ES', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU',
+  zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', tr: 'tr-TR',
+  nl: 'nl-NL', pl: 'pl-PL', hi: 'hi-IN', fa: 'fa-IR',
+};
+
 export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   // ─── State ────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<RoomPhase>('setup');
@@ -41,9 +49,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   // ─── Refs ─────────────────────────────────────────────────────────
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteAudioRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const sentTranscriptIdsRef = useRef<Set<string>>(new Set());
 
   const myLanguageRef = useRef(myLanguage);
   useEffect(() => { myLanguageRef.current = myLanguage; }, [myLanguage]);
@@ -54,6 +61,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const isListeningRef = useRef(false);
   const stopListeningRef = useRef<(() => void) | null>(null);
   const startListeningRef = useRef<(() => void) | null>(null);
+  // تتبع إرادة المستخدم (هل يجب أن يستمع) بصرف نظر عن الحالة الفعلية
+  const shouldListenRef = useRef(false);
 
   // ─── Stores & Hooks ───────────────────────────────────────────────
   const { processRecognizedText, speakText } = useRealtimeTranslation();
@@ -70,7 +79,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     setRemoteStream(stream);
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = stream;
-      remoteAudioRef.current.muted = true; // المستمع يسمع الصوت المترجم (TTS) فقط
+      remoteAudioRef.current.muted = false; // الصوت الأصلي للطرف الآخر
       remoteAudioRef.current.play().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,16 +106,23 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [removeParticipant]);
 
   const handleConnectionChange = useCallback((connected: boolean) => {
-    if (connected && phase === 'connecting') setPhase('active');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+    if (connected) setPhase(prev => prev === 'connecting' ? 'active' : prev);
+  }, []);
 
   // هنا يتم استقبال الصوت (النص المترجم) وتشغيله
+  // نتجاهل النصوص اللي بعثناها نحن (عشان منكررش العربي)
   const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
+    // Skip transcripts that we sent ourselves (prevent echo/repetition)
+    if (transcript.speakerId === participantIdRef.current) return;
     addTranscript(transcript);
     // We do NOT speak here anymore. We wait for the 'translated-audio' socket event.
   }, [addTranscript]);
 
+  /**
+   * Full-Duplex TTS Handler
+   * الميكروفون مش بيتوقف خالص — الاتنين يقدروا يتكلموا في نفس الوقت.
+   * TTS بيشتغل في الـ background والميكروفون فاضل شغّال.
+   */
   const handleTranslatedAudio = useCallback((data: {
     originalId: string;
     speakerName: string;
@@ -115,45 +131,58 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     translatedLanguage: string;
     audioBase64: string;
   }) => {
+    if (!data.translatedText?.trim()) return;
+
+    // تحديث النص المترجم في الـ UI
     updateTranscript(data.originalId, {
       translatedText: data.translatedText,
-      translatedLanguage: data.translatedLanguage
+      translatedLanguage: data.translatedLanguage,
     });
 
-    if (!data.audioBase64) return;
-    
-    setProcessingStatus({ stage: 'synthesizing', message: 'الطرف الآخر يتحدث...' });
-    const wasListening = isListeningRef.current;
-    if (wasListening) stopListeningRef.current?.();
+    // تحديث الـ status فقط — الميكروفون فاضل شغّال
+    setProcessingStatus({ stage: 'synthesizing', message: `🔊 ${data.speakerName} يتحدث...` });
 
-    const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
-    if (audio) {
-      audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
-      audio.onended = () => {
-        if (wasListening) {
-          setTimeout(() => {
-            startListeningRef.current?.();
-            setMicOn(true);
-            setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
-          }, 300);
+    const afterPlay = () => {
+      // بعد انتهاء الصوت، رجّع الـ status للاستماع (الميكروفون لسه شغّال)
+      if (shouldListenRef.current) {
+        setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
+      } else {
+        setProcessingStatus({ stage: 'idle', message: '' });
+      }
+    };
+
+    const speakWithWebSpeech = (text: string, lang: string): Promise<void> =>
+      new Promise((resolve) => {
+        if (!('speechSynthesis' in window)) { resolve(); return; }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = LANG_TO_LOCALE[lang] || lang;
+        utterance.rate = 1.05;
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length === 0) {
+          window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.speak(utterance);
         } else {
-          setProcessingStatus({ stage: 'idle', message: '' });
-        }
-      };
-      audio.play().catch((err) => {
-        console.error('Audio play error:', err);
-        // Fallback: resume mic even if audio fails to play
-        if (wasListening) {
-          startListeningRef.current?.();
-          setMicOn(true);
-          setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
-        } else {
-          setProcessingStatus({ stage: 'idle', message: '' });
+          window.speechSynthesis.speak(utterance);
         }
       });
+
+    // شغّل الصوت (ElevenLabs أو Web Speech) بدون إيقاف الميكروفون
+    if (data.audioBase64) {
+      const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
+      if (audio) {
+        audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
+        audio.onended = afterPlay;
+        audio.onerror = () => speakWithWebSpeech(data.translatedText, data.translatedLanguage).then(afterPlay);
+        audio.play().catch(() => speakWithWebSpeech(data.translatedText, data.translatedLanguage).then(afterPlay));
+        return;
+      }
     }
+
+    speakWithWebSpeech(data.translatedText, data.translatedLanguage).then(afterPlay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateTranscript, setProcessingStatus, setMicOn]);
+  }, [updateTranscript, setProcessingStatus]);
 
   const {
     isReady: isSocketReady,
@@ -241,8 +270,9 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       speakerId: participantId, speakerName: name || (role === 'host' ? 'المضيف' : 'الضيف'),
       speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage,
     }, (entry) => {
-      sentTranscriptIdsRef.current.add(entry.id);
-      socketSendTranscript(entry);
+      // Ensure originalLanguage is always set correctly before sending to server
+      const enrichedEntry = { ...entry, originalLanguage: myLanguage };
+      socketSendTranscript(enrichedEntry);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript]);
@@ -275,6 +305,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       connectToHost(localStreamRef.current);
     }
   }, [phase, isPeerReady, role, connectToHost]);
+
 
   const getMediaStream = useCallback(async () => {
     let stream: MediaStream | null = null;
@@ -323,22 +354,36 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
     if (enableMic && isSupported) {
       setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
-      startListening();
-      setMicOn(true);
+      shouldListenRef.current = true;
+
+      if (role === 'host') {
+        // Host: start mic immediately
+        startListening();
+        setMicOn(true);
+      } else {
+        // Guest: delay 1200ms to let WebRTC negotiation finish
+        // without interfering with Web Speech API mic access
+        setTimeout(() => {
+          console.log('[Guest] Starting mic...');
+          startListening();
+          setMicOn(true);
+        }, 1200);
+      }
     }
     setCameraOn(enableCamera);
-    
     setTimeout(() => setPhase('active'), role === 'host' ? 0 : 2000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, getMediaStream, setPeerLocalStream, connectToHost, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus]);
 
   const handleToggleMic = useCallback(() => {
     if (isListening) {
+      shouldListenRef.current = false;
       stopListening();
       setMicOn(false);
       setProcessingStatus({ stage: 'idle', message: '' });
       updateParticipant(participantId, { isMicOn: false });
     } else {
+      shouldListenRef.current = true;
       startListening();
       setMicOn(true);
       setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
@@ -428,10 +473,17 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               {enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
             <button onClick={async () => {
-              setEnableCamera(!enableCamera);
-              if (!enableCamera) {
-                const stream = await getMediaStream();
-                if (stream && localVideoRef.current) localVideoRef.current.srcObject = stream;
+              const next = !enableCamera;
+              setEnableCamera(next);
+              if (next) {
+                // فقط عند التشغيل — نطلب الستريم مرة واحدة
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => null);
+                if (stream && localVideoRef.current) {
+                  localStreamRef.current = stream;
+                  localVideoRef.current.srcObject = stream;
+                }
+              } else {
+                localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = false; });
               }
             }} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'}`}>
               {enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
@@ -520,7 +572,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const renderActive = () => (
     <div className="h-[calc(100dvh-4rem)] flex flex-col bg-[#050505]">
-      <video ref={remoteAudioRef} autoPlay playsInline style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
       <audio id="tts-audio-player" playsInline className="hidden" />
       {showInviteModal && renderInviteModal()}
 

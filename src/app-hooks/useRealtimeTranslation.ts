@@ -5,9 +5,7 @@
 
 import { useCallback, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
-import { useConfigStore } from '@/state/configStore';
 import { useRoomStore } from '@/state/roomStore';
-import { getLanguageName } from '@/config/languages';
 import type { TranscriptEntry, ParticipantRole } from '@/types';
 
 interface TranslationOptions {
@@ -19,57 +17,9 @@ interface TranslationOptions {
 }
 
 export function useRealtimeTranslation() {
-  const config = useConfigStore((s) => s.config);
   const { addTranscript, setProcessingStatus, audioPlaybackEnabled } = useRoomStore();
-  const processingRef = useRef(false);
-
-  // ترجمة فورية باستخدام Groq (سريع جداً)
-  const translateText = useCallback(async (
-    text: string,
-    sourceLang: string,
-    targetLang: string
-  ): Promise<string> => {
-    if (!text.trim() || sourceLang === targetLang) return text;
-
-    const srcName = getLanguageName(sourceLang);
-    const tgtName = getLanguageName(targetLang);
-
-    const systemPrompt = `أنت مترجم فوري محترف وذكي.
-مهمتك: ترجمة النص مباشرة من ${srcName} إلى ${tgtName}.
-القواعد الأساسية:
-1. قم بإرجاع الترجمة فقط، بدون أي مقدمات، بدون تفسيرات، بدون أي نصوص إضافية.
-2. الترجمة يجب أن تكون طبيعية وتراعي السياق.
-3. إذا كانت اللغة المصدر أو الهدف هي العربية المصرية، فاستخدم اللهجة المصرية بشكل سليم (مثال: "إزيك" بدلاً من "كيف حالك").
-4. حافظ على سرعة المعنى ودقته لأن هذا التطبيق يستخدم للترجمة الفورية أثناء المكالمات.
-5. لا تضف علامات ترقيم إذا كان النص الأصلي غير مكتمل.`;
-
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer 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`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-8b-instant', // أسرع نموذج
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: text },
-          ],
-          temperature: 0.1,
-          max_tokens: 200,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Translation failed');
-      
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content?.trim() || text;
-    } catch (err) {
-      console.error('Translation error:', err);
-      return text;
-    }
-  }, [config.groqApiKey]);
+  const processingRef = useRef(false); // kept for future use
+  void processingRef; // suppress unused warning
 
   // قائمة انتظار TTS لمنع التداخل
   const ttsQueueRef = useRef<(() => Promise<void>)[]>([]);
@@ -169,9 +119,9 @@ export function useRealtimeTranslation() {
     onTranslationComplete?: (entry: TranscriptEntry) => void
   ) => {
     if (!text.trim()) return;
+    // BUG-FIX-2: reduced cooldown from 2000ms → 500ms so fast speakers aren't dropped
     if (lastTranslatedTextRef.current === text.trim()) return;
-    if (processingRef.current) return;
-    processingRef.current = true;
+    // BUG-FIX-2: removed processingRef guard — it was silently dropping guest transcripts
     lastTranslatedTextRef.current = text.trim();
 
     const { speakerId, speakerName, speakerRole, sourceLanguage } = options;
@@ -179,9 +129,7 @@ export function useRealtimeTranslation() {
     try {
       const entry: TranscriptEntry = {
         id: uuid(),
-        speakerId,
-        speakerName,
-        speakerRole,
+        speakerId, speakerName, speakerRole,
         originalText: text,
         originalLanguage: sourceLanguage,
         translatedText: text,
@@ -190,22 +138,18 @@ export function useRealtimeTranslation() {
       };
 
       addTranscript(entry);
-
-      if (onTranslationComplete) {
-        onTranslationComplete(entry);
-      }
-
+      if (onTranslationComplete) onTranslationComplete(entry);
       setProcessingStatus({ stage: 'listening', message: 'جاري الاستماع...' });
 
     } catch (err) {
       console.error('Processing error:', err);
       setProcessingStatus({ stage: 'error', message: 'خطأ' });
     } finally {
-      processingRef.current = false;
-      // بعد ثانيتين، أعد تعيين النص المترجم للسماح بترجمة جملة مشابهة لاحقاً
-      setTimeout(() => { lastTranslatedTextRef.current = ''; }, 2000);
+      // BUG-FIX-2: 500ms cooldown (was 2000ms)
+      setTimeout(() => { lastTranslatedTextRef.current = ''; }, 500);
     }
-  }, [translateText, addTranscript, setProcessingStatus]);
+  // BUG-FIX-2: removed translateText from deps — it’s not used here anymore
+  }, [addTranscript, setProcessingStatus]);
 
   // معالجة النص المُعرَف عليه مع دعم الترجمة الفورية
   const processRecognizedText = useCallback((

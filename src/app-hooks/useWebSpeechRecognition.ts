@@ -1,47 +1,18 @@
 /**
  * Web Speech API - التعرف الفوري على الصوت
- * يعمل في المتصفح مباشرة بدون إرسال ملفات للخادم
  */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-// أنواع Web Speech API
-interface SpeechRecognitionResultItem {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  length: number;
-  [index: number]: SpeechRecognitionResultItem;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-  message: string;
-}
-
+interface SpeechRecognitionResultItem { transcript: string; confidence: number; }
+interface SpeechRecognitionResult { isFinal: boolean; length: number; [index: number]: SpeechRecognitionResultItem; }
+interface SpeechRecognitionResultList { length: number; [index: number]: SpeechRecognitionResult; }
+interface SpeechRecognitionEvent extends Event { resultIndex: number; results: SpeechRecognitionResultList; }
+interface SpeechRecognitionErrorEvent extends Event { error: string; message: string; }
 interface SpeechRecognitionInstance extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  continuous: boolean; interimResults: boolean; maxAlternatives: number; lang: string;
+  start: () => void; stop: () => void; abort: () => void;
+  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
   onstart: (() => void) | null;
 }
@@ -56,155 +27,138 @@ interface UseWebSpeechOptions {
 
 export function useWebSpeechRecognition(options: UseWebSpeechOptions) {
   const { language, continuous = true, interimResults = true, onResult, onError } = options;
-  
+
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const isListeningRef = useRef(false);
+  const recognitionRef  = useRef<SpeechRecognitionInstance | null>(null);
+  const isListeningRef  = useRef(false);
 
-  // تحقق من دعم المتصفح
+  // BUG-FIX-4: keep a ref to the latest onResult so recognition always uses fresh callback
+  const onResultRef = useRef(onResult);
+  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
+
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const win = window as any;
-    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
-    setIsSupported(!!SpeechRecognition);
+    setIsSupported(!!(win.SpeechRecognition || win.webkitSpeechRecognition));
   }, []);
 
-  // إنشاء وتهيئة التعرف على الصوت
   const initRecognition = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const win = window as any;
-    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
-    if (!SpeechRecognition) return null;
+    const SR = win.SpeechRecognition || win.webkitSpeechRecognition;
+    if (!SR) return null;
 
-    const recognition: SpeechRecognitionInstance = new SpeechRecognition();
-    
-    // إعدادات للتعرف الفوري
-    recognition.continuous = continuous;
-    recognition.interimResults = interimResults;
-    recognition.maxAlternatives = 1;
-    
-    // تعيين اللغة - دعم اللهجة المصرية
-    if (language === 'ar') {
-      recognition.lang = 'ar-EG'; // العربية المصرية
-    } else if (language === 'en') {
-      recognition.lang = 'en-US';
-    } else {
-      recognition.lang = language;
-    }
+    const r: SpeechRecognitionInstance = new SR();
+    r.continuous      = continuous;
+    r.interimResults  = interimResults;
+    r.maxAlternatives = 1;
 
-    // معالجة النتائج الفورية
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
+    if (language === 'ar')      r.lang = 'ar-EG';
+    else if (language === 'en') r.lang = 'en-US';
+    else                        r.lang = language;
 
+    r.onresult = (event: SpeechRecognitionEvent) => {
+      let finalText = '', interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalText   += t;
+        else                          interimText  += t;
       }
-
-      if (finalTranscript) {
-        console.log('🎤 Final:', finalTranscript);
-        onResult(finalTranscript.trim(), true);
-      } else if (interimTranscript) {
-        console.log('🎤 Interim:', interimTranscript);
-        onResult(interimTranscript.trim(), false);
-      }
+      // BUG-FIX-4: always call the LATEST onResult via ref
+      if (finalText)       { console.log('🎤 Final:', finalText);   onResultRef.current(finalText.trim(),   true);  }
+      else if (interimText){ console.log('🎤 Interim:', interimText); onResultRef.current(interimText.trim(), false); }
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Speech error:', event.error);
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        onError?.(event.error);
-      }
+    r.onerror = (event: SpeechRecognitionErrorEvent) => {
+      // BUG-FIX-3: only ONE restart path — handled in onend, not here.
+      // 'aborted' fires when stop() is called; 'no-speech' is normal.
+      if (event.error === 'aborted' || event.error === 'no-speech') return;
+      console.warn('[STT] Error:', event.error);
+      onError?.(event.error);
     };
 
-    recognition.onend = () => {
-      // إعادة التشغيل تلقائياً
+    r.onend = () => {
+      // BUG-FIX-3: single restart path — only if we should still be listening
       if (isListeningRef.current && continuous) {
         setTimeout(() => {
-          try {
-            if (isListeningRef.current && recognitionRef.current) {
-              recognitionRef.current.start();
-            }
-          } catch (e) {
-            console.log('Restart error, retrying...');
+          if (isListeningRef.current && recognitionRef.current) {
+            try { recognitionRef.current.start(); } catch (_) { /* already running */ }
           }
-        }, 100);
+        }, 200);
       }
     };
 
-    return recognition;
-  }, [language, continuous, interimResults, onResult, onError]);
+    return r;
+  }, [language, continuous, interimResults, onError]);
 
-  // بدء الاستماع
   const startListening = useCallback(() => {
-    if (!isSupported) {
-      onError?.('المتصفح لا يدعم التعرف على الصوت');
-      return;
-    }
+    if (!isSupported) { onError?.('المتصفح لا يدعم التعرف على الصوت'); return; }
 
-    // إيقاف أي جلسة سابقة
+    // stop any previous session cleanly
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // ignore
-      }
+      isListeningRef.current = false; // prevent onend restart for OLD recognition
+      try { recognitionRef.current.stop(); } catch (_) {}
+      recognitionRef.current = null;
     }
 
     const recognition = initRecognition();
-    if (recognition) {
-      recognitionRef.current = recognition;
-      isListeningRef.current = true;
-      try {
-        recognition.start();
-        setIsListening(true);
-        console.log('🎤 Started listening:', language);
-      } catch (e) {
-        console.error('Start error:', e);
-        isListeningRef.current = false;
+    if (!recognition) return;
+
+    recognitionRef.current = recognition;
+    isListeningRef.current = true;
+
+    // small delay to let old recognition fully stop before starting new one
+    setTimeout(() => {
+      if (isListeningRef.current && recognitionRef.current === recognition) {
+        try {
+          recognition.start();
+          setIsListening(true);
+          console.log('🎤 Started listening:', language);
+        } catch (e) {
+          console.error('[STT] Start error:', e);
+          isListeningRef.current = false;
+          setIsListening(false);
+        }
       }
-    }
+    }, 100);
   }, [isSupported, initRecognition, language, onError]);
 
-  // إيقاف الاستماع
   const stopListening = useCallback(() => {
     isListeningRef.current = false;
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // ignore
-      }
+      try { recognitionRef.current.stop(); } catch (_) {}
       recognitionRef.current = null;
     }
     setIsListening(false);
     console.log('🎤 Stopped');
   }, []);
 
-  // تنظيف
   useEffect(() => {
     return () => {
       isListeningRef.current = false;
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          // ignore
-        }
-      }
+      try { recognitionRef.current?.stop(); } catch (_) {}
     };
   }, []);
 
-  return {
-    isListening,
-    isSupported,
-    startListening,
-    stopListening,
-  };
+  // BUG-FIX-10: restart recognition when language changes mid-session
+  const prevLanguageRef = useRef(language);
+  useEffect(() => {
+    if (prevLanguageRef.current === language) return;
+    prevLanguageRef.current = language;
+    if (isListeningRef.current) {
+      // Stop current session; onend will restart with new language via startListening
+      isListeningRef.current = false;
+      try { recognitionRef.current?.stop(); } catch (_) {}
+      recognitionRef.current = null;
+      // Re-start with the new language after a small delay
+      setTimeout(() => {
+        isListeningRef.current = true;
+        const r = initRecognition();
+        if (!r) return;
+        recognitionRef.current = r;
+        try { r.start(); setIsListening(true); } catch (_) {}
+      }, 200);
+    }
+  }, [language, initRecognition]);
+
+  return { isListening, isSupported, startListening, stopListening };
 }
