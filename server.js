@@ -10,21 +10,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-
-// REST API for Translation
-app.post('/api/translate', async (req, res) => {
-  const { text, sourceLang, targetLang } = req.body;
-  const translated = await translateText(text, sourceLang, targetLang);
-  res.json({ translatedText: translated });
-});
-
-// REST API for TTS
-app.post('/api/tts', async (req, res) => {
-  const { text, language } = req.body;
-  const audioBase64 = await generateTTS(text, language);
-  res.json({ audioBase64 });
-});
 
 // Serve Vite's static build files (Frontend)
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -33,13 +18,10 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true
+    methods: ["GET", "POST"]
   },
-  allowEIO3: true,
   pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ['polling', 'websocket']
+  pingInterval: 25000
 });
 
 // Debug: Log all connection attempts

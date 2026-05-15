@@ -32,12 +32,11 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
   useEffect(() => {
     if (!opts.enabled) return;
 
-    console.log(`🔌 Attempting Socket.IO connection...`);
+    console.log(`🔌 Connecting to Socket.IO signaling...`);
     const socket = io({
-      transports: ['polling', 'websocket'], // Try polling first for better compatibility
-      withCredentials: true,
+      transports: ['websocket', 'polling'],
       reconnectionAttempts: 20,
-      reconnectionDelay: 1000,
+      reconnectionDelay: 2000,
       timeout: 20000,
     });
     socketRef.current = socket;

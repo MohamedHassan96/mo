@@ -137,17 +137,6 @@ export function usePeerConnection(opts: Options) {
       if (!peer.destroyed) peer.reconnect();
     });
 
-    // Handle incoming data connections (signaling fallback)
-    peer.on('connection', (conn) => {
-      conn.on('data', (data: any) => {
-        const msg = data as Msg;
-        console.log('📡 P2P Data Received:', msg.type);
-        if (msg.type === 'chat') cbRef.current.onChatMessage(msg.payload);
-        if (msg.type === 'transcript') cbRef.current.onTranscriptReceived?.(msg.payload);
-        if (msg.type === 'participant-update') cbRef.current.onParticipantUpdate(msg.payload);
-      });
-    });
-
     peerRef.current = peer;
 
     return () => {
@@ -219,15 +208,6 @@ export function usePeerConnection(opts: Options) {
     isReady, error, connectedPeers,
     myPeerId: peerRef.current?.id ?? '',
     connectToHost, setLocalStream,
-    sendP2PData: (data: Msg) => {
-      connsRef.current.forEach((_, pid) => {
-        const conn = peerRef.current?.connect(pid);
-        conn?.on('open', () => {
-          conn.send(data);
-          setTimeout(() => conn.close(), 1000); // Send and close for simplicity
-        });
-      });
-    },
     replaceVideoTrack, disconnect,
   };
 }
