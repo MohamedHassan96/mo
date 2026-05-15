@@ -104,10 +104,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   // هنا يتم استقبال الصوت (النص المترجم) وتشغيله
   // نتجاهل النصوص اللي بعثناها نحن (عشان منكررش العربي)
   const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
-    // Skip transcripts that we sent ourselves (prevent echo/repetition)
-    if (transcript.speakerId === participantIdRef.current) return;
+    // Show all transcripts, including local ones (server-side truth)
     addTranscript(transcript);
-    // We do NOT speak here anymore. We wait for the 'translated-audio' socket event.
   }, [addTranscript]);
 
   /**
@@ -223,8 +221,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [connectedPeers]);
 
   // ─── Link Helpers ────────────────────────────────────────────────
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const getInviteLink = useCallback(() => `${window.location.href.split('#')[0]}#/room/${roomId}`, [roomId]);
+  // Normalize roomId to lowercase for consistent P2P and Socket discovery
+  const normalizedRoomId = roomId.trim().toLowerCase();
+  
+  const getInviteLink = useCallback(() => `${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`, [normalizedRoomId]);
 
   const handleCopyLink = useCallback(async () => {
     const link = getInviteLink();
@@ -501,9 +501,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             </div>
 
             <div className="space-y-5">
-              <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-400 px-1">كود الغرفة</label>
-                <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toUpperCase())} dir="ltr" className="w-full px-5 py-4 rounded-[20px] bg-black/40 border border-white/10 text-white placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all uppercase" />
+                <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} dir="ltr" className="w-full px-5 py-4 rounded-[20px] bg-black/40 border border-white/10 text-white placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all lowercase" />
               </div>
 
               <div className="space-y-2">

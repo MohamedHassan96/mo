@@ -101,8 +101,9 @@ io.on('connection', (socket) => {
 
   // 1. Join Room & Canonical State Sync
   socket.on('join-room', (payload, callback) => {
-    const { roomId, participant } = payload;
+    let { roomId, participant } = payload;
     if (!roomId || !participant) return;
+    roomId = roomId.trim().toLowerCase();
 
     // Leave old rooms
     socket.rooms.forEach(r => { if (r !== socket.id) socket.leave(r); });
@@ -117,15 +118,16 @@ io.on('connection', (socket) => {
     console.log(`[Socket] ${participant.name} joined ${roomId}`);
 
     const participants = Object.values(rooms[roomId]);
-    io.to(roomId).emit('room-state', { participants });
+    io.in(roomId).emit('room-state', { participants });
 
     if (callback) callback({ status: 'ok', participants });
   });
 
   // 2. Chat with Ack
   socket.on('chat-message', (payload, callback) => {
-    const { roomId, message } = payload;
+    let { roomId, message } = payload;
     if (!roomId || !message) return;
+    roomId = roomId.trim().toLowerCase();
     
     // Broadcast to others in the room
     socket.to(roomId).emit('chat-message', { message });
@@ -134,13 +136,14 @@ io.on('connection', (socket) => {
 
   // 3. Translated Text & Audio Delivery Pattern
   socket.on('raw-transcript', async (payload, callback) => {
-    const { roomId, transcriptEntry } = payload;
+    let { roomId, transcriptEntry } = payload;
     if (!roomId || !transcriptEntry) return;
+    roomId = roomId.trim().toLowerCase();
 
     if (callback) callback({ status: 'received' });
 
     // Broadcast original text to everyone for instant UI update
-    io.to(roomId).emit('transcript-update', { transcriptEntry });
+    io.in(roomId).emit('transcript-update', { transcriptEntry });
 
     const participants = Object.values(rooms[roomId] || {});
     

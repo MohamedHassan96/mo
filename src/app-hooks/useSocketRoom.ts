@@ -42,10 +42,12 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     socketRef.current = socket;
 
     const joinRoom = () => {
-      // BUG-FIX-1: use cbRef.current so reconnects send fresh language/name
+      // Normalize roomId to lowercase
       const { roomId, participant } = cbRef.current;
+      const normalizedRoomId = roomId.trim().toLowerCase();
+
       socket.emit('join-room', {
-        roomId,
+        roomId: normalizedRoomId,
         participant: { ...participant, socketId: socket.id },
       }, (response: any) => {
         if (response?.status === 'ok') {
@@ -102,7 +104,10 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
 
   // BUG-FIX-5: use socketRef.current (always fresh) not a stale closure
   const sendChatMessage = useCallback((message: ChatMessage) => {
-    socketRef.current?.emit('chat-message', { roomId: cbRef.current.roomId, message });
+    socketRef.current?.emit('chat-message', { 
+      roomId: cbRef.current.roomId.trim().toLowerCase(), 
+      message 
+    });
   }, []);
 
   const sendTranscript = useCallback((transcriptEntry: TranscriptEntry) => {
@@ -113,7 +118,7 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
       return;
     }
     socketRef.current.emit('raw-transcript', {
-      roomId: cbRef.current.roomId,
+      roomId: cbRef.current.roomId.trim().toLowerCase(),
       transcriptEntry,
     });
   }, []);
