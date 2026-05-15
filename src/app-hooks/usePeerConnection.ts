@@ -20,6 +20,8 @@ interface Options {
   onPeerConnected?: (peerId: string) => void;
   onTranscriptReceived?: (t: TranscriptEntry) => void;
   enabled?: boolean;
+  myId: string;
+  hostId?: string;
 }
 
 interface Conn {
@@ -54,9 +56,7 @@ export function usePeerConnection(opts: Options) {
   useEffect(() => {
     if (opts.enabled === false) return;
 
-    const peerId = opts.isHost
-      ? `talkbridge-${opts.roomId}`.toLowerCase()
-      : `talkbridge-${opts.roomId}-${Date.now().toString(36)}`.toLowerCase();
+    const peerId = opts.myId;
 
     console.log(`🔗 Peer: ${peerId} (${opts.isHost ? 'HOST' : 'GUEST'})`);
 
@@ -146,12 +146,12 @@ export function usePeerConnection(opts: Options) {
       });
     }
 
-    const hostId = `talkbridge-${opts.roomId}`.toLowerCase();
-    console.log(`🔌 Connecting to host: ${hostId}`);
+    const targetHostId = cbRef.current.hostId || `talkbridge-${opts.roomId}`.toLowerCase();
+    console.log(`🔌 Connecting to host: ${targetHostId}`);
 
     try {
-      const call = peer.call(hostId, stream);
-      connsRef.current.set(hostId, { mc: call });
+      const call = peer.call(targetHostId, stream);
+      connsRef.current.set(targetHostId, { mc: call });
 
       call.on('stream', (remoteStream) => {
         console.log('🎥 Guest got host stream');
@@ -161,7 +161,7 @@ export function usePeerConnection(opts: Options) {
 
       call.on('error', (e) => console.error('❌ Guest call error:', e));
       call.on('close', () => {
-        connsRef.current.delete(hostId);
+        connsRef.current.delete(targetHostId);
         refreshPeers();
       });
 

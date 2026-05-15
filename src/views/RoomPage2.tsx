@@ -191,11 +191,15 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onTranslatedAudio: handleTranslatedAudio
   });
 
+  const hostParticipant = participants.find(p => p.role === 'host');
+
   const {
     isReady: isPeerReady, error: peerError, connectedPeers, connectToHost, setLocalStream: setPeerLocalStream,
     disconnect: peerDisconnect
   } = usePeerConnection({
     roomId, isHost: role === 'host',
+    myId: participantIdRef.current,
+    hostId: hostParticipant?.id,
     enabled: phase !== 'setup',
     onRemoteStream: handleRemoteStream,
     onChatMessage: () => {}, // Handled by Socket.IO
@@ -289,9 +293,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   useEffect(() => {
     if (phase === 'connecting' && isPeerReady && role === 'guest' && localStreamRef.current) {
+      if (!hostParticipant?.id) {
+        console.log('Waiting for host ID from Socket.IO...');
+        return;
+      }
       connectToHost(localStreamRef.current);
     }
-  }, [phase, isPeerReady, role, connectToHost]);
+  }, [phase, isPeerReady, role, connectToHost, hostParticipant?.id]);
 
 
   const getMediaStream = useCallback(async () => {
