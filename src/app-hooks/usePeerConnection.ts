@@ -160,8 +160,8 @@ export function usePeerConnection(opts: Options) {
       });
     }
 
-    const targetHostId = cbRef.current.hostId || `talkbridge-${opts.roomId}`.toLowerCase();
-    console.log(`🔌 Connecting to host: ${targetHostId}`);
+    const targetHostId = opts.hostId || opts.roomId;
+    console.log(`🔌 Connecting directly to Host Peer: ${targetHostId}`);
 
     try {
       const call = peer.call(targetHostId, stream);

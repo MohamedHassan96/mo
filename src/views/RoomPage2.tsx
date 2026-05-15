@@ -42,6 +42,9 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [partnerLanguage, setPartnerLanguage] = useState(role === 'host' ? 'en' : 'ar');
   const [copied, setCopied] = useState(false);
   const [participantId] = useState(() => uuid());
+  // We use a predictable ID for the host's PeerJS to avoid signaling delays in production
+  const myPeerId = role === 'host' ? roomId : `guest-${uuid().slice(0, 8)}`;
+  
   const [enableCamera, setEnableCamera] = useState(true);
   const [enableMic, setEnableMic] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -198,8 +201,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     disconnect: peerDisconnect
   } = usePeerConnection({
     roomId, isHost: role === 'host',
-    myId: participantIdRef.current,
-    hostId: hostParticipant?.id,
+    myId: myPeerId,
+    hostId: roomId, // Predictable Host ID
     enabled: phase !== 'setup',
     onRemoteStream: handleRemoteStream,
     onChatMessage: () => { }, // Handled by Socket.IO
@@ -293,13 +296,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   useEffect(() => {
     if (phase === 'connecting' && isPeerReady && role === 'guest' && localStreamRef.current) {
-      if (!hostParticipant?.id) {
-        console.log('Waiting for host ID from Socket.IO...');
-        return;
-      }
+      console.log('🚀 Guest initiating direct P2P connection to Host...');
       connectToHost(localStreamRef.current);
     }
-  }, [phase, isPeerReady, role, connectToHost, hostParticipant?.id]);
+  }, [phase, isPeerReady, role, connectToHost]);
 
 
   const getMediaStream = useCallback(async () => {
