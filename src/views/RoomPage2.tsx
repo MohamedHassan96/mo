@@ -104,11 +104,52 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   // هنا يتم استقبال الصوت (النص المترجم) وتشغيله
   // نتجاهل النصوص اللي بعثناها نحن (عشان منكررش العربي)
   const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
-    // Skip transcripts that we sent ourselves (prevent echo/repetition)
     if (transcript.speakerId === participantIdRef.current) return;
     addTranscript(transcript);
-    // We do NOT speak here anymore. We wait for the 'translated-audio' socket event.
-  }, [addTranscript]);
+
+    // If it's in a different language, we need to translate it
+    if (transcript.originalLanguage !== myLanguageRef.current) {
+      setProcessingStatus({ stage: 'translating', message: 'جاري الترجمة...' });
+      
+      try {
+        // Fallback REST API Translation
+        const tRes = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: transcript.originalText,
+            sourceLang: transcript.originalLanguage,
+            targetLang: myLanguageRef.current
+          })
+        });
+        const { translatedText } = await tRes.json();
+        
+        updateTranscript(transcript.id, { 
+          translatedText, 
+          translatedLanguage: myLanguageRef.current 
+        });
+
+        // Fallback REST API TTS
+        const sRes = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: translatedText, language: myLanguageRef.current })
+        });
+        const { audioBase64 } = await sRes.json();
+        
+        handleTranslatedAudio({
+          originalId: transcript.id,
+          speakerName: transcript.speakerName,
+          originalText: transcript.originalText,
+          translatedText,
+          translatedLanguage: myLanguageRef.current,
+          audioBase64
+        });
+      } catch (err) {
+        console.error('REST Fallback Error:', err);
+      }
+    }
+  }, [addTranscript, updateTranscript, handleTranslatedAudio, setProcessingStatus]);
 
   /**
    * Full-Duplex TTS Handler
@@ -205,13 +246,26 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     hostId: roomId, // Predictable Host ID
     enabled: phase !== 'setup',
     onRemoteStream: handleRemoteStream,
-    onChatMessage: () => { }, // Handled by Socket.IO
-    onParticipantUpdate: () => { }, // Handled by Socket.IO
-    onParticipantLeft: () => { }, // Handled by Socket.IO
+    onChatMessage: (msg) => { addChatMessage(msg); },
+    onParticipantUpdate: (p) => { updateParticipant(p.id, p); },
+    onParticipantLeft: (pid) => { updateParticipant(pid, { isConnected: false }); },
     onConnectionChange: handleConnectionChange,
-    onPeerConnected: () => { },
-    onTranscriptReceived: () => { }, // Handled by Socket.IO
+    onPeerConnected: (pid) => {
+      // Sync my participant info to the new peer directly via P2P
+      sendP2PData({
+        type: 'participant-update',
+        payload: {
+          id: participantIdRef.current,
+          name: name || (role === 'host' ? 'المضيف' : 'الضيف'),
+          role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera,
+          isScreenSharing: false, isConnected: true,
+        }
+      });
+    },
+    onTranscriptReceived: handleTranscriptReceived,
   });
+
+  const { sendP2PData } = peerHook;
 
   const prevPeersRef = useRef<string[]>([]);
   useEffect(() => {
@@ -267,6 +321,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       // Ensure originalLanguage is always set correctly before sending to server
       const enrichedEntry = { ...entry, originalLanguage: myLanguage };
       socketSendTranscript(enrichedEntry);
+      sendP2PData({ type: 'transcript', payload: enrichedEntry });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript]);
@@ -614,7 +669,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               myRole={role}
               myLanguage={myLanguage}
               partnerLanguage={partnerLanguage}
-              onSendMessage={(msg) => { addChatMessage(msg); socketSendChat(msg); }}
+              onSendMessage={(msg) => { 
+                addChatMessage(msg); 
+                socketSendChat(msg); 
+                sendP2PData({ type: 'chat', payload: msg });
+              }}
             />
           </div>
         )}
