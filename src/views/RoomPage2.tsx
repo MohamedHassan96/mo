@@ -282,7 +282,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   useEffect(() => {
     setStoreMyId(participantId);
-    if (role === 'host') createRoom(roomId, participantId);
+    if (role === 'host') createRoom(normalizedRoomId, participantId);
     return () => {
       stopListening();
       socketDisconnect();
