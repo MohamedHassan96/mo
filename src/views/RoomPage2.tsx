@@ -336,10 +336,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     setMicOn(enableMic);
     setCameraOn(enableCamera);
     
-    const stream = await getMediaStream();
-    if (stream) {
-      setPeerLocalStream(stream);
-    }
+    getMediaStream().then(stream => {
+      if (stream) {
+        setPeerLocalStream(stream);
+      }
+    });
 
     const ttsPlayer = document.getElementById('tts-audio-player') as HTMLAudioElement;
     if (ttsPlayer) {
