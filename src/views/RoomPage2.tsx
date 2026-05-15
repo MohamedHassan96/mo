@@ -228,20 +228,20 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const hostParticipant = participants.find(p => p.role === 'host');
 
   const {
-    isReady: isPeerReady, error: peerError, connectedPeers, connectToHost, setLocalStream: setPeerLocalStream,
-    disconnect: peerDisconnect
+    disconnect: peerDisconnect,
+    sendData: peerSendData
   } = usePeerConnection({
     roomId: normalizedRoomId, isHost: role === 'host',
     myId: myPeerId,
     hostId: normalizedRoomId, // Predictable Host ID
     enabled: phase !== 'setup',
     onRemoteStream: handleRemoteStream,
-    onChatMessage: () => { }, // Handled by Socket.IO
-    onParticipantUpdate: () => { }, // Handled by Socket.IO
-    onParticipantLeft: () => { }, // Handled by Socket.IO
+    onChatMessage: handleChatMessage,
+    onParticipantUpdate: (p) => updateParticipant(p.id, p),
+    onParticipantLeft: (pid) => { /* Logic to remove peer if needed */ },
     onConnectionChange: handleConnectionChange,
     onPeerConnected: () => { },
-    onTranscriptReceived: () => { }, // Handled by Socket.IO
+    onTranscriptReceived: handleTranscriptReceived,
   });
 
   const prevPeersRef = useRef<string[]>([]);
@@ -294,12 +294,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       speakerId: participantId, speakerName: name || (role === 'host' ? 'المضيف' : 'الضيف'),
       speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage,
     }, async (entry) => {
-      const enrichedEntry = { ...entry, originalLanguage: myLanguage };
-      
       // 1. Try sending via Socket.IO
       socketSendTranscript(enrichedEntry);
+      
+      // 2. Backup: Send via PeerJS Data Channel (Direct)
+      peerSendData({ type: 'transcript', payload: enrichedEntry });
 
-      // 2. Fallback logic: If alone in room or socket disconnected, we can still show local translation
+      // 3. Fallback logic: If alone in room or socket disconnected, we can still show local translation
       if (isFinal && participants.length === 1) {
         // Just for visual feedback when alone
         const translated = await translateRest(entry.originalText, myLanguage, partnerLanguage);
@@ -652,7 +653,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               myRole={role}
               myLanguage={myLanguage}
               partnerLanguage={partnerLanguage}
-              onSendMessage={(msg) => { addChatMessage(msg); socketSendChat(msg); }}
+              onSendMessage={(msg) => { 
+                addChatMessage(msg); 
+                socketSendChat(msg); 
+                peerSendData({ type: 'chat', payload: msg });
+              }}
             />
           </div>
         )}
