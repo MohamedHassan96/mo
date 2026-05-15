@@ -23,6 +23,7 @@ app.use('/api/socket.io', (req, res, next) => {
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   path: '/api/socket.io',
+  addTrailingSlash: false,
   cors: {
     origin: "*",
     methods: ["GET", "POST"]

@@ -600,14 +600,14 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       </div>
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative p-4 gap-4 bg-[#050505]">
-        <div className="flex-1 min-h-0 rounded-[32px] overflow-hidden border border-white/5 relative bg-[#0a0a0a]">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative p-2 sm:p-4 gap-2 sm:gap-4 bg-[#050505]">
+        <div className={`min-h-0 rounded-[24px] sm:rounded-[32px] overflow-hidden border border-white/5 relative bg-[#0a0a0a] transition-all duration-300 ${sidePanelOpen ? 'flex-1 lg:flex-1' : 'flex-1'}`}>
           <VideoGrid />
         </div>
 
         {/* Sleek Integrated SidePanel */}
         {sidePanelOpen && (
-          <div className="w-full lg:w-[400px] h-full rounded-[32px] overflow-hidden bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col z-40 animate-fade-in">
+          <div className="w-full lg:w-[400px] flex-1 lg:flex-none lg:h-full rounded-[24px] sm:rounded-[32px] overflow-hidden bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col z-40 animate-fade-in shrink-0">
             <SidePanel
               myId={participantId}
               myName={name || (role === 'host' ? 'المضيف' : 'الضيف')}
