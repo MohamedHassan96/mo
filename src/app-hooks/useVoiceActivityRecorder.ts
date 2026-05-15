@@ -36,7 +36,6 @@ export function useVoiceActivityRecorder({
   useEffect(() => { onSpeechStartRef.current = onSpeechStart; }, [onSpeechStart]);
   useEffect(() => { streamRef.current = stream; }, [stream]);
 
-  // ── Internal teardown (does NOT touch isListening state) ──────────────────
   const teardown = useCallback(() => {
     isActiveRef.current = false;
 
@@ -56,7 +55,7 @@ export function useVoiceActivityRecorder({
 
     analyserRef.current = null;
     isSpeakingRef.current = false;
-    chunksRef.current = [];
+    // تم إزالة chunksRef.current = [] من هنا عشان ما يضيعش آخر تسجيل
   }, []);
 
   // ── stopListening ──────────────────────────────────────────────────────────
@@ -109,7 +108,7 @@ export function useVoiceActivityRecorder({
         const chunks = chunksRef.current.splice(0); // drain & reset
         if (chunks.length === 0) return;
         const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
-        if (blob.size < 1000) return; // ignore tiny / silent blobs
+        if (blob.size < 300) return; // ignore tiny / silent blobs, reduced from 1000 to 300 to not drop short phrases
 
         const reader = new FileReader();
         reader.onloadend = () => {
