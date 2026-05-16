@@ -122,6 +122,13 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     });
   }, []);
 
+  const updateRoomConfig = useCallback((config: { geminiApiKey?: string, elevenLabsApiKey?: string }) => {
+    socketRef.current?.emit('update-room-config', {
+      roomId: cbRef.current.roomId.trim().toLowerCase(),
+      config
+    });
+  }, []);
+
   const sendTranscript = useCallback((transcriptEntry: TranscriptEntry) => {
     if (!socketRef.current?.connected) {
       // BUG-FIX-9: queue instead of drop when offline
@@ -139,5 +146,5 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     socketRef.current?.disconnect();
   }, []);
 
-  return { isReady, error, sendChatMessage, sendTranscript, disconnect };
+  return { isReady, error, sendChatMessage, sendTranscript, updateParticipant, updateRoomConfig, disconnect };
 }

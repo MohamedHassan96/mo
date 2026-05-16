@@ -67,6 +67,8 @@ io.engine.on("connection_error", (err) => {
 
 // Canonical Room State: Record<roomId, Record<socketId, Participant>>
 const rooms = {};
+// Room Config: Record<roomId, { geminiApiKey: string, elevenLabsApiKey: string }>
+const roomConfigs = {};
 
 const LANG_NAMES = {
   ar: 'Arabic', en: 'English', fr: 'French', de: 'German',
@@ -102,19 +104,20 @@ function fixRTLForConsole(text) {
 }
 
 // Helper: Translation API (Gemini)
-async function translateText(text, sourceLang, targetLang) {
+async function translateText(text, sourceLang, targetLang, customApiKey = '') {
   if (!text || sourceLang === targetLang) return text;
   
-  if (!GEMINI_API_KEY) {
-    console.warn('GEMINI_API_KEY not found, falling back to Groq or original text');
-    if (!GROQ_API_KEY) return text;
-    // ... existing Groq logic could go here, but let's prioritize Gemini
+  const apiKey = customApiKey || GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn('GEMINI_API_KEY not found on server or room config');
+    if (GROQ_API_KEY) return translateTextGroq(text, sourceLang, targetLang);
+    return text;
   }
 
   const srcName = LANG_NAMES[sourceLang] || sourceLang;
   const tgtName = LANG_NAMES[targetLang] || targetLang;
   
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
   const systemPrompt = `You are a professional real-time SLANG-AWARE conversational translator bridge.
 Translate from ${srcName} to ${tgtName}.
@@ -160,7 +163,6 @@ EXAMPLES:
     console.error('Gemini Translation error:', err.message);
     // Fallback to Groq if available
     if (GROQ_API_KEY) {
-      console.log('🔄 Falling back to Groq for translation...');
       return translateTextGroq(text, sourceLang, targetLang);
     }
     return text;
@@ -213,10 +215,11 @@ const ELEVENLABS_VOICES = {
 };
 
 // Helper: TTS API
-async function generateTTS(text, language) {
+async function generateTTS(text, language, customApiKey = '') {
   if (!text) return '';
-  if (!ELEVENLABS_API_KEY) {
-    throw new Error('ELEVENLABS_API_KEY is not configured');
+  const apiKey = customApiKey || ELEVENLABS_API_KEY;
+  if (!apiKey) {
+    throw new Error('ElevenLabs API Key is not configured on server or room');
   }
   
   const voiceId = ELEVENLABS_VOICES[language] || ELEVENLABS_VOICES.en;
@@ -225,7 +228,7 @@ async function generateTTS(text, language) {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'xi-api-key': ELEVENLABS_API_KEY,
+        'xi-api-key': apiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -255,8 +258,8 @@ async function generateTTS(text, language) {
 // REST API Fallbacks (Guaranteed to work on Railway)
 app.post('/api/translate', async (req, res) => {
   try {
-    const { text, sourceLang, targetLang } = req.body;
-    const translated = await translateText(text, sourceLang, targetLang);
+    const { text, sourceLang, targetLang, apiKey } = req.body;
+    const translated = await translateText(text, sourceLang, targetLang, apiKey);
     res.json({ ok: true, translated });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message || 'Translation failed' });
@@ -265,8 +268,8 @@ app.post('/api/translate', async (req, res) => {
 
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text, language } = req.body;
-    const audioBase64 = await generateTTS(text, language);
+    const { text, language, apiKey } = req.body;
+    const audioBase64 = await generateTTS(text, language, apiKey);
     res.json({ ok: true, audioBase64 });
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message || 'TTS failed' });
@@ -323,6 +326,15 @@ io.on('connection', (socket) => {
     if (callback) callback({ status: 'ok', participants });
   });
 
+  // Room Config Update
+  socket.on('update-room-config', (payload) => {
+    const { roomId, config } = payload;
+    if (!roomId || !config) return;
+    const nid = roomId.trim().toLowerCase();
+    roomConfigs[nid] = { ...roomConfigs[nid], ...config };
+    console.log(`[Socket] Room ${nid} config updated`);
+  });
+
   // 2. Chat with Ack
   socket.on('chat-message', (payload, callback) => {
     let { roomId, message } = payload;
@@ -358,6 +370,7 @@ io.on('connection', (socket) => {
     io.in(roomId).emit('transcript-update', { transcriptEntry });
 
     const participants = Object.values(rooms[roomId] || {});
+    const rConfig = roomConfigs[roomId] || {};
     
     // Fan-out Translations
     for (const p of participants) {
@@ -381,21 +394,24 @@ io.on('connection', (socket) => {
             finalTranslatedText = await translateText(
               transcriptEntry.originalText, 
               srcLang, 
-              tgtLang
+              tgtLang,
+              rConfig.geminiApiKey
             );
           } catch (err) {
             console.warn(`[Server] Translation failed, using original:`, err.message);
             finalTranslatedText = transcriptEntry.originalText;
           }
-        } else {
-          console.log(`[Server] Using client-provided translation for ${tgtLang}`);
         }
 
         // Generate Audio Base64
         let audioBase64 = '';
         try {
           console.log(`[Server] Generating TTS for ${p.language}: "${finalTranslatedText.substring(0, 30)}..."`);
-          audioBase64 = await generateTTS(finalTranslatedText, p.language);
+          audioBase64 = await generateTTS(
+            finalTranslatedText, 
+            p.language,
+            rConfig.elevenLabsApiKey
+          );
         } catch (err) {
           console.warn(`[Server] TTS generation failed:`, err.message);
           audioBase64 = '';
@@ -422,6 +438,7 @@ io.on('connection', (socket) => {
         delete rooms[roomId][socket.id];
         if (Object.keys(rooms[roomId]).length === 0) {
           delete rooms[roomId];
+          delete roomConfigs[roomId];
         } else {
           io.to(roomId).emit('room-state', { participants: Object.values(rooms[roomId]) });
         }
@@ -444,4 +461,3 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 httpServer.on('upgrade', (req, socket, head) => {
   console.log(`[HTTP Upgrade Attempt] URL: ${req.url}, Headers:`, req.headers);
 });
-

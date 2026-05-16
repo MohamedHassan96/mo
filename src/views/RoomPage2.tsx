@@ -175,6 +175,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     sendChatMessage: socketSendChat,
     sendTranscript: socketSendTranscript,
     updateParticipant: socketUpdateParticipant,
+    updateRoomConfig: socketUpdateRoomConfig,
     disconnect: socketDisconnect
   } = useSocketRoom({
     roomId: normalizedRoomId,
@@ -213,6 +214,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onParticipantUpdate: (p) => updateParticipant(p.id, p),
     onConnectionChange: handleConnectionChange,
     onPeerConnected: () => { },
+    onParticipantLeft: (pid) => removeParticipant(pid),
     onTranscriptReceived: handleTranscriptReceived,
   });
 
@@ -260,16 +262,34 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     });
   }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript, peerSendData, t]);
 
-  const { isListening, isSupported, startListening, stopListening } = useSpeechToText({
+  const {
+    isListening,
+    isSupported,
+    startListening,
+    stopListening,
+  } = useSpeechToText({
     language: myLanguage,
     onResult: handleSpeechResult,
   });
+
+  // Share API keys with server for fan-out translation whenever they change
+  const config = useConfigStore((state) => state.config);
+  useEffect(() => {
+    if (phase === 'active' && (config.geminiApiKey || config.elevenLabsApiKey)) {
+      socketUpdateRoomConfig({
+        geminiApiKey: config.geminiApiKey,
+        elevenLabsApiKey: config.elevenLabsApiKey
+      });
+    }
+  }, [phase, config.geminiApiKey, config.elevenLabsApiKey, socketUpdateRoomConfig]);
 
   useEffect(() => {
     isListeningRef.current = isListening;
     stopListeningRef.current = stopListening;
     startListeningRef.current = startListening;
   }, [isListening, stopListening, startListening]);
+
+  const { removeParticipant } = useRoomStore();
 
   useEffect(() => {
     setStoreMyId(participantId);
@@ -316,6 +336,16 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       window.location.hash = `/room/${customRoomId}`;
       return;
     }
+    
+    // Share API keys with server for fan-out translation
+    const { config } = useConfigStore.getState();
+    if (config.geminiApiKey || config.elevenLabsApiKey) {
+      socketUpdateRoomConfig({
+        geminiApiKey: config.geminiApiKey,
+        elevenLabsApiKey: config.elevenLabsApiKey
+      });
+    }
+
     setPhase('connecting');
     const myParticipant: Participant = {
       id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder),
@@ -351,9 +381,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       ttsPlayer.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXv7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/////////////wAAAEhMYXZjNTkuMzcuMTAwAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs9SR+AAAAAAAAAAAAAAAAAAAA//OEAQAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OEAwAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OEBAAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
       ttsPlayer.play().catch(() => { });
     }
-    setCameraOn(enableCamera);
     setTimeout(() => setPhase('active'), role === 'host' ? 0 : 2000);
-  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId]);
+  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId, socketUpdateRoomConfig]);
 
   const handleToggleMic = useCallback(() => {
     const nextState = !isMicOn;
@@ -375,6 +404,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     }
 
     setMicOn(nextState);
+    setEnableMic(nextState); // Sync local state too
     const updates = { isMicOn: nextState };
     updateParticipant(participantId, updates);
     socketUpdateParticipant(updates);
@@ -386,19 +416,28 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const handleToggleCamera = useCallback(async () => {
     const wasOn = isCameraOnStore;
     const nextOn = !wasOn;
+    
+    // Update all relevant states immediately for UI responsiveness
     setEnableCamera(nextOn);
     setCameraOn(nextOn);
+    
     const updates = { isCameraOn: nextOn };
     updateParticipant(participantId, updates);
     socketUpdateParticipant(updates);
     peerSendData({ type: 'participant-update', payload: { id: participantId, ...updates } as Participant });
     
     if (nextOn) {
-      await startCamera();
+      const stream = await startCamera();
+      if (stream) {
+        // Automatically sync track to peers
+        const videoTrack = stream.getVideoTracks()[0] || null;
+        peerReplaceVideoTrack(videoTrack);
+      }
     } else {
       stopCamera();
+      peerReplaceVideoTrack(null);
     }
-  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera]);
+  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera, peerReplaceVideoTrack]);
 
   const handleEndCall = useCallback(() => {
     stopListening();
