@@ -66,7 +66,7 @@ export default function SidePanel({
               onClick={() => setSidePanelTab(tab.id)}
               className={`min-w-0 flex-1 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-3 text-xs sm:text-sm font-bold transition-colors ${
                 isActive
-                  ? 'text-[#FF4D00] border-b-2 border-[#FF4D00]'
+                  ? 'text-[#0070FF] border-b-2 border-[#0070FF]'
                   : 'text-gray-500 hover:text-gray-700 dark:text-[#A3A3A3] dark:hover:text-white'
               }`}
             >
@@ -75,7 +75,7 @@ export default function SidePanel({
               {count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   isActive
-                    ? 'bg-[#FF4D00]/10 text-[#FF4D00]'
+                    ? 'bg-[#0070FF]/10 text-[#0070FF]'
                     : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-500 dark:text-[#A3A3A3]'
                 }`}>
                   {count}

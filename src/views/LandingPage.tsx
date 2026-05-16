@@ -39,28 +39,28 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
 
   const features = [
     { icon: Video,         title: t.feat1Title, description: t.feat1Desc, color: 'from-blue-500 to-cyan-500' },
-    { icon: Mic,           title: t.feat2Title, description: t.feat2Desc, color: 'from-indigo-500 to-purple-500' },
+    { icon: Mic,           title: t.feat2Title, description: t.feat2Desc, color: 'from-blue-500 to-purple-500' },
     { icon: MonitorUp,     title: t.feat3Title, description: t.feat3Desc, color: 'from-green-500 to-emerald-500' },
-    { icon: MessageSquare, title: t.feat4Title, description: t.feat4Desc, color: 'from-orange-500 to-red-500' },
+    { icon: MessageSquare, title: t.feat4Title, description: t.feat4Desc, color: 'from-blue-500 to-red-500' },
     { icon: Globe,         title: t.feat5Title, description: t.feat5Desc, color: 'from-purple-500 to-pink-500' },
-    { icon: Zap,           title: t.feat6Title, description: t.feat6Desc, color: 'from-yellow-500 to-orange-500' },
+    { icon: Zap,           title: t.feat6Title, description: t.feat6Desc, color: 'from-yellow-500 to-blue-500' },
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] flex flex-col bg-gray-50 dark:bg-[#080808] selection:bg-[#FF4D00] selection:text-white" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] flex flex-col bg-gray-50 dark:bg-[#080808] selection:bg-[#0070FF] selection:text-white" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Hero */}
       <section className="relative overflow-hidden pt-10 sm:pt-20 pb-16 sm:pb-32">
         {/* Abstract Liquid Background */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#FF4D00] opacity-[0.15] rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#0070FF] opacity-[0.15] rounded-full blur-[120px] animate-pulse" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#8B2B00] opacity-[0.15] rounded-full blur-[120px]" />
         </div>
 
         <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center flex flex-col items-center">
             {/* Tag */}
-            <div className="animate-fade-up inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-orange-50 dark:bg-[#1a0800] border border-orange-200 dark:border-[#FF4D00]/20 mb-6 sm:mb-8">
-              <span className="text-xs font-bold text-[#FF4D00] tracking-[0.2em] uppercase">
+            <div className="animate-fade-up inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-blue-50 dark:bg-[#00081a] border border-blue-200 dark:border-[#0070FF]/20 mb-6 sm:mb-8">
+              <span className="text-xs font-bold text-[#0070FF] tracking-[0.2em] uppercase">
                 {t.tagline}
               </span>
             </div>
@@ -69,7 +69,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
             <h1 className="animate-fade-up delay-100 text-[42px] sm:text-[72px] lg:text-[96px] font-extrabold text-gray-900 dark:text-white tracking-tighter leading-[1.02] sm:leading-[0.95] max-w-4xl mx-auto">
               {t.heroTitle}
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#FF4D00] to-[#b33600]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#0070FF] to-[#b33600]">
                 {t.heroHighlight}
               </span>
             </h1>
@@ -82,13 +82,13 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
             {/* Features mini */}
             <div className="animate-fade-up delay-300 mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-bold text-gray-600 dark:text-[#737373]">
               <span className="flex items-center gap-2 bg-white dark:bg-[#121212] px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-none">
-                <Video className="w-4 h-4 text-[#FF4D00]" /> {t.badgeHD}
+                <Video className="w-4 h-4 text-[#0070FF]" /> {t.badgeHD}
               </span>
               <span className="flex items-center gap-2 bg-white dark:bg-[#121212] px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-none">
-                <Users className="w-4 h-4 text-[#FF4D00]" /> {t.badgeLink}
+                <Users className="w-4 h-4 text-[#0070FF]" /> {t.badgeLink}
               </span>
               <span className="flex items-center gap-2 bg-white dark:bg-[#121212] px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-none">
-                <Languages className="w-4 h-4 text-[#FF4D00]" /> {t.badgeTranslate}
+                <Languages className="w-4 h-4 text-[#0070FF]" /> {t.badgeTranslate}
               </span>
             </div>
 
@@ -98,7 +98,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
               {/* Action 1: Create New Room */}
               <button
                 onClick={handleCreateRoom}
-                className="group flex-1 w-full md:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-4 sm:py-5 bg-[#FF4D00] text-white rounded-2xl text-base sm:text-lg font-bold 
+                className="group flex-1 w-full md:w-auto flex items-center justify-center gap-3 px-6 sm:px-8 py-4 sm:py-5 bg-[#0070FF] text-white rounded-2xl text-base sm:text-lg font-bold 
                            shadow-[0_0_30px_rgba(255,77,0,0.3)] hover:shadow-[0_0_50px_rgba(255,77,0,0.5)]
                            transition-all duration-300 hover:-translate-y-1 relative overflow-hidden"
               >
@@ -115,12 +115,12 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
                   onChange={(e) => setRoomCode(e.target.value)}
                   placeholder={t.joinPlaceholder}
                   dir={isRtl ? 'rtl' : 'ltr'}
-                  className="w-full px-5 sm:px-6 py-4 sm:py-5 bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl text-base sm:text-lg font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all shadow-sm"
+                  className="w-full px-5 sm:px-6 py-4 sm:py-5 bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl text-base sm:text-lg font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#0070FF] focus:ring-1 focus:ring-[#0070FF] transition-all shadow-sm"
                 />
                 <button
                   type="submit"
                   disabled={!roomCode.trim()}
-                  className="absolute ltr:right-2 rtl:left-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-gray-100 dark:bg-[#1A1A1A] hover:bg-[#FF4D00] text-gray-600 dark:text-gray-400 hover:text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed group/join"
+                  className="absolute ltr:right-2 rtl:left-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-gray-100 dark:bg-[#1A1A1A] hover:bg-[#0070FF] text-gray-600 dark:text-gray-400 hover:text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed group/join"
                 >
                   <ArrowRight className={`w-5 h-5 transition-transform ${isRtl ? '-scale-x-100 group-hover/join:scale-x-100' : 'group-hover/join:translate-x-1'}`} />
                 </button>
@@ -138,7 +138,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
               ].map((item, i) => (
                 <div key={item.step} className="flex items-center">
                   <div className="flex flex-col items-center w-full">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[20px] bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#1E1E1E] flex items-center justify-center mb-3 sm:mb-4 group-hover:border-[#FF4D00]/50 transition-colors shadow-sm dark:shadow-none">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] sm:rounded-[20px] bg-white dark:bg-[#121212] border border-gray-200 dark:border-[#1E1E1E] flex items-center justify-center mb-3 sm:mb-4 group-hover:border-[#0070FF]/50 transition-colors shadow-sm dark:shadow-none">
                       <item.icon className="w-6 h-6 sm:w-7 sm:h-7 text-gray-400 dark:text-[#A3A3A3]" />
                     </div>
                     <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-[#D9D9D9] tracking-wide">{item.label}</span>
@@ -154,7 +154,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
       {/* Features */}
       <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-16 sm:pb-32">
         <div className="mb-8 sm:mb-12 text-center">
-          <span className="text-[#FF4D00] font-bold tracking-[0.2em] uppercase text-xs">
+          <span className="text-[#0070FF] font-bold tracking-[0.2em] uppercase text-xs">
             {t.featuresLabel}
           </span>
         </div>
@@ -168,9 +168,9 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
             >
               <div
                 className={`w-14 h-14 rounded-full bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center mb-6 
-                            group-hover:bg-[#FF4D00]/10 transition-colors duration-300`}
+                            group-hover:bg-[#0070FF]/10 transition-colors duration-300`}
               >
-                <feature.icon className="w-6 h-6 text-[#FF4D00]" />
+                <feature.icon className="w-6 h-6 text-[#0070FF]" />
               </div>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3 tracking-tight text-start">
                 {feature.title}
@@ -186,11 +186,11 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
       {/* Footer */}
       <footer className="mt-auto border-t border-gray-200 dark:border-[#1E1E1E] py-10 sm:py-16 bg-gray-50 dark:bg-[#080808] relative overflow-hidden">
         {/* Glow behind footer */}
-        <div className="absolute bottom-[-50%] left-1/2 -translate-x-1/2 w-[80%] h-[100%] bg-[#FF4D00] opacity-[0.05] blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-[-50%] left-1/2 -translate-x-1/2 w-[80%] h-[100%] bg-[#0070FF] opacity-[0.05] blur-[100px] pointer-events-none" />
         
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center gap-5 sm:gap-6 relative z-10 text-center">
           <div className="flex items-center gap-3">
-            <Video className="w-6 h-6 text-[#FF4D00]" />
+            <Video className="w-6 h-6 text-[#0070FF]" />
             <span className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tighter">TalkBridge</span>
           </div>
           <p className="text-gray-500 dark:text-[#737373] text-sm font-bold">{t.footerDesc}</p>

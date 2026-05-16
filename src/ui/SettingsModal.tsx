@@ -33,7 +33,7 @@ export default function SettingsModal() {
           {/* Gemini API Key */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-              <Sparkles className="w-4 h-4 text-indigo-500" />
+              <Sparkles className="w-4 h-4 text-blue-500" />
               Gemini API Key
             </label>
             <div className="relative">
@@ -43,7 +43,7 @@ export default function SettingsModal() {
                 value={config.geminiApiKey}
                 onChange={(e) => setConfig({ geminiApiKey: e.target.value })}
                 placeholder="AIza..."
-                className="w-full pl-11 pr-5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                className="w-full pl-11 pr-5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
               />
             </div>
             <p className="text-[10px] text-gray-500">مطلوب للترجمة والتعرف على الصوت الفائق السرعة</p>
@@ -52,7 +52,7 @@ export default function SettingsModal() {
           {/* Groq API Key */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-              <Languages className="w-4 h-4 text-indigo-500" />
+              <Languages className="w-4 h-4 text-blue-500" />
               {t.settingsGroqKey}
             </label>
             <div className="relative">
@@ -62,7 +62,7 @@ export default function SettingsModal() {
                 value={config.groqApiKey}
                 onChange={(e) => setConfig({ groqApiKey: e.target.value })}
                 placeholder="gsk_..."
-                className="w-full pl-11 pr-5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                className="w-full pl-11 pr-5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
               />
             </div>
             <p className="text-[10px] text-gray-500">مطلوب للترجمة بين اللغات المختلفة</p>
@@ -71,7 +71,7 @@ export default function SettingsModal() {
           {/* ElevenLabs API Key */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-              <Volume2 className="w-4 h-4 text-indigo-500" />
+              <Volume2 className="w-4 h-4 text-blue-500" />
               {t.settingsElevenKey}
             </label>
             <div className="relative">
@@ -81,7 +81,7 @@ export default function SettingsModal() {
                 value={config.elevenLabsApiKey}
                 onChange={(e) => setConfig({ elevenLabsApiKey: e.target.value })}
                 placeholder="Key..."
-                className="w-full pl-11 pr-5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                className="w-full pl-11 pr-5 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
               />
             </div>
             <p className="text-[10px] text-gray-500">مطلوب لتحويل النص إلى صوت (TTS)</p>
@@ -91,7 +91,7 @@ export default function SettingsModal() {
 
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-              <Volume2 className="w-4 h-4 text-indigo-500" />
+              <Volume2 className="w-4 h-4 text-blue-500" />
               {t.settingsAudioProvider}
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -101,7 +101,7 @@ export default function SettingsModal() {
                   onClick={() => setConfig({ ttsProvider: provider })}
                   className={`py-3 rounded-xl text-sm font-bold transition-all ${
                     config.ttsProvider === provider
-                      ? 'bg-indigo-500 text-white shadow-lg'
+                      ? 'bg-blue-500 text-white shadow-lg'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -122,10 +122,10 @@ export default function SettingsModal() {
           {config.ttsProvider === 'elevenlabs' && (
             <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-5 h-5 text-indigo-500" />
-                <span className="font-bold text-indigo-700 dark:text-indigo-300">Available Voices</span>
+                <Sparkles className="w-5 h-5 text-blue-500" />
+                <span className="font-bold text-blue-700 dark:text-indigo-300">Available Voices</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs text-indigo-600 dark:text-indigo-400">
+              <div className="grid grid-cols-2 gap-2 text-xs text-blue-600 dark:text-indigo-400">
                 <span>🇪🇬 Arabic: {ELEVENLABS_VOICES.ar.name}</span>
                 <span>🇺🇸 English: {ELEVENLABS_VOICES.en.name}</span>
                 <span>🇫🇷 French: {ELEVENLABS_VOICES.fr.name}</span>
@@ -137,7 +137,7 @@ export default function SettingsModal() {
 
         <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
           <button onClick={() => setShowSettings(false)}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold">
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold">
             {t.settingsSave}
           </button>
         </div>

@@ -13,14 +13,21 @@ export async function translateTextGemini(
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const systemPrompt = `You are a professional real-time conversational translator.
+  const systemPrompt = `You are a professional real-time SLANG-AWARE conversational translator.
 Translate from ${sourceLanguage} to ${targetLanguage}.
 
 RULES:
-1. Return ONLY the direct translation.
-2. No explanations, no quotes, no labels.
-3. Preserve the tone, slang, and meaning.
-${targetLanguage === 'ar' ? '4. IMPORTANT: For Arabic, use natural, conversational "White Arabic" or "Egyptian Dialect". Avoid formal Fusha. Speak like a friend (e.g., use "إزيك", "تمام", "ماشي").' : ''}`;
+1. Return ONLY the direct translation. No explanations.
+2. Maintain the EXACT VIBE and SLANG of the speaker.
+3. FOR ARABIC (Target): Use deep Egyptian/White Arabic. Use "إزيك", "عامل إيه", "قشطة", "فل", "ماشي", "يا صاحبي", "يا باشا". AVOID "كيف حالك", "حسناً".
+4. FOR ENGLISH (Target): Use casual, natural slang. Use "What's up", "Bro", "Cool", "I'm down", "Gotcha", "No worries".
+
+EXAMPLES:
+- "What's up bro" -> "إيه الكلام يا صاحبي؟"
+- "That's legit" -> "ده على وضعه والله"
+- "I'm down for that" -> "قشطة أنا معاك"
+- "فكك مني" -> "Get off my back"
+- "منور يا وحش" -> "Good to see you, legend"`;
 
   try {
     const response = await fetch(url, {

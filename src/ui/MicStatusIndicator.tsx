@@ -16,7 +16,7 @@ export default function MicStatusIndicator({
       case 'listening': return 'text-green-500';
       case 'transcribing': return 'text-blue-500';
       case 'translating': return 'text-purple-500';
-      case 'synthesizing': return 'text-orange-500';
+      case 'synthesizing': return 'text-blue-500';
       case 'playing': return 'text-cyan-500';
       case 'error': return 'text-red-500';
       default: return 'text-gray-400';
