@@ -42,8 +42,8 @@ export default function ParticipantsPanel() {
                 {/* Avatar */}
                 <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
                   isHost
-                    ? 'bg-gradient-to-br from-sky-400 to-sky-600'
-                    : 'bg-gradient-to-br from-sky-600 to-violet-600'
+                    ? 'bg-gradient-to-[#004a70]r from-sky-400 to-sky-600'
+                    : 'bg-gradient-to-[#004a70]r from-sky-600 to-violet-600'
                 }`}>
                   <span className="text-lg font-extrabold text-white">
                     {(participant.name || '?').charAt(0).toUpperCase()}
@@ -71,8 +71,8 @@ export default function ParticipantsPanel() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1">
-                        <User className="w-3 h-3 text-indigo-400" />
-                        <span className="text-[11px] font-bold text-sky-700 dark:text-indigo-400">{t.participantGuest}</span>
+                        <User className="w-3 h-3 text-sky-400" />
+                        <span className="text-[11px] font-bold text-sky-700 dark:text-sky-400">{t.participantGuest}</span>
                       </div>
                     )}
                     <span className="text-[10px] text-gray-400">·</span>

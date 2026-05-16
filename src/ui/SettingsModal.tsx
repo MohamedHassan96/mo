@@ -11,8 +11,8 @@ export default function SettingsModal() {
   if (!showSettings) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" dir={['ar', 'fa', 'ur'].includes(uiLanguage) ? 'rtl' : 'ltr'}>
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#002e47]lack/60 backdrop-blur-sm" dir={['ar', 'fa', 'ur'].includes(uiLanguage) ? 'rtl' : 'ltr'}>
+      <div className="bg-white dark:bg-[#0d1b2a] rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t.settingsTitle}</h2>
           <button onClick={() => setShowSettings(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
@@ -120,12 +120,12 @@ export default function SettingsModal() {
 
           {/* معلومات ElevenLabs */}
           {config.ttsProvider === 'elevenlabs' && (
-            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-800">
+            <div className="p-4 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-200 dark:border-sky-800">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-5 h-5 text-sky-600" />
-                <span className="font-bold text-sky-800 dark:text-indigo-300">Available Voices</span>
+                <span className="font-bold text-sky-800 dark:text-sky-300">Available Voices</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs text-sky-700 dark:text-indigo-400">
+              <div className="grid grid-cols-2 gap-2 text-xs text-sky-700 dark:text-sky-400">
                 <span>🇪🇬 Arabic: {ELEVENLABS_VOICES.ar.name}</span>
                 <span>🇺🇸 English: {ELEVENLABS_VOICES.en.name}</span>
                 <span>🇫🇷 French: {ELEVENLABS_VOICES.fr.name}</span>

@@ -54,9 +54,9 @@ export default function SidePanel({
   };
 
   return (
-    <div className="h-full w-full bg-gray-50 dark:bg-[#121212] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
+    <div className="h-full w-full bg-gray-50 dark:bg-[#112240] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
       {/* Tabs */}
-      <div className="flex items-center border-b border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#121212]">
+      <div className="flex items-center border-b border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#112240]">
         {TABS.map((tab) => {
           const count = getCount(tab.id);
           const isActive = sidePanelTab === tab.id;

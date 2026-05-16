@@ -132,7 +132,7 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
                       <div
                         className={`flex items-center gap-1 px-4 py-0.5 ${
                           isMe
-                            ? 'bg-black/10'
+                            ? 'bg-[#002e47]lack/10'
                             : 'bg-gray-200/60 dark:bg-white/5'
                         }`}
                       >

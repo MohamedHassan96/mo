@@ -90,7 +90,7 @@ export default function MeetingControls({
   }, [isScreenSharing, onStartScreenShare, onStopScreenShare, setLocalScreenStream, setScreenSharing]);
 
   return (
-    <div className="bg-white/90 dark:bg-[#121212]/90 backdrop-blur-xl border-t border-gray-200 dark:border-[#1E1E1E] px-3 sm:px-6 py-3 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4">
+    <div className="bg-white/90 dark:bg-[#112240]/90 backdrop-blur-xl border-t border-gray-200 dark:border-[#1E1E1E] px-3 sm:px-6 py-3 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
         {/* Left side - Room info */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -139,7 +139,7 @@ export default function MeetingControls({
           <button
             onClick={handleToggleScreenShare}
             className={`hidden sm:flex w-14 h-14 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${isScreenSharing
-                ? 'bg-[#006494] hover:bg-[#004a70] text-white border-none shadow-[0_0_20px_rgba(255,77,0,0.4)]'
+                ? 'bg-[#006494] hover:bg-[#004a70] text-white border-none shadow-[0_0_20px_rgba(0,100,148,0.4)]'
                 : 'bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-700 dark:text-white'
               }`}
             title={isScreenSharing ? 'إيقاف المشاركة' : 'مشاركة الشاشة'}
@@ -165,7 +165,7 @@ export default function MeetingControls({
             onClick={() => setAudioPlaybackEnabled(!audioPlaybackEnabled)}
             className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${audioPlaybackEnabled
                 ? 'bg-green-50 dark:bg-[#1E1E1E] hover:bg-green-100 dark:hover:bg-[#2A2A2A] text-green-600 dark:text-green-500'
-                : 'bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-[#1A1A1A] text-gray-400 dark:text-[#A3A3A3]'
+                : 'bg-white dark:bg-[#112240] hover:bg-gray-50 dark:hover:bg-[#1A1A1A] text-gray-400 dark:text-[#A3A3A3]'
               }`}
             title={audioPlaybackEnabled ? 'كتم الترجمة الصوتية' : 'تشغيل الترجمة الصوتية'}
           >
@@ -176,7 +176,7 @@ export default function MeetingControls({
           <button
             onClick={toggleSidePanel}
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${sidePanelOpen
-                ? 'bg-[#006494] text-white shadow-[0_0_20px_rgba(255,77,0,0.3)] border-none'
+                ? 'bg-[#006494] text-white shadow-[0_0_20px_rgba(0,100,148,0.3)] border-none'
                 : 'bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-500 dark:text-[#A3A3A3] hover:text-gray-900 dark:hover:text-white'
               }`}
             title="فتح/إغلاق الدردشة"
@@ -196,7 +196,7 @@ export default function MeetingControls({
             </button>
 
             {showMore && (
-              <div className="absolute bottom-full right-0 mb-3 w-60 bg-white dark:bg-[#121212] rounded-[20px] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-gray-200 dark:border-[#1E1E1E] overflow-hidden">
+              <div className="absolute bottom-full right-0 mb-3 w-60 bg-white dark:bg-[#112240] rounded-[20px] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-gray-200 dark:border-[#1E1E1E] overflow-hidden">
                 <button
                   onClick={() => {
                     setAudioPlaybackEnabled(!audioPlaybackEnabled);

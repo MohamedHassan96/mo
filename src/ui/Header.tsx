@@ -40,7 +40,7 @@ export default function Header({ showBackButton = false, onBack }: HeaderProps) 
   const isRtl = ['ar', 'fa', 'ur'].includes(uiLanguage);
 
   return (
-    <header className="sticky top-0 z-[9999] bg-white/85 dark:bg-[#080808]/85 backdrop-blur-xl border-b border-gray-200 dark:border-[#1E1E1E]" dir={isRtl ? 'rtl' : 'ltr'}>
+    <header className="sticky top-0 z-[9999] bg-white/85 dark:bg-[#010816]/85 backdrop-blur-xl border-b border-gray-200 dark:border-[#1E1E1E]" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
 
@@ -57,7 +57,7 @@ export default function Header({ showBackButton = false, onBack }: HeaderProps) 
               </button>
             )}
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-[0_0_20px_rgba(255,77,0,0.1)]">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gray-50 dark:bg-[#112240] flex items-center justify-center border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-[0_0_20px_rgba(0,100,148,0.1)]">
                 <Languages className="w-4 h-4 sm:w-5 sm:h-5 text-[#006494]" />
               </div>
               <div className="text-start">
@@ -91,7 +91,7 @@ export default function Header({ showBackButton = false, onBack }: HeaderProps) 
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setDropdownOpen(prev => !prev)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-blue-50 dark:bg-[#121212] border border-blue-100 dark:border-[#1E1E1E] hover:border-[#006494]/50 transition-all group"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-[#002e47]lue-50 dark:bg-[#112240] border border-blue-100 dark:border-[#1E1E1E] hover:border-[#006494]/50 transition-all group"
                 title={t.langToggleTooltip}
                 aria-label={t.langToggleTooltip}
               >
