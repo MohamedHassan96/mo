@@ -337,8 +337,16 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     setCameraOn(enableCamera);
     const stream = await getMediaStream();
     if (stream) {
-      stream.getAudioTracks().forEach(track => { track.enabled = enableMic; });
-      setPeerLocalStream(stream);
+      // Ensure tracks match the intended state
+      stream.getAudioTracks().forEach(track => {
+        track.enabled = enableMic;
+      });
+
+      // PURE AI BRIDGE: Only send Video tracks to peers. 
+      // Do NOT send Audio tracks via PeerConnection to ensure only translated audio is heard.
+      const videoOnlyStream = new MediaStream(stream.getVideoTracks());
+      setPeerLocalStream(videoOnlyStream);
+
       if (enableMic && isSupported) {
         setProcessingStatus({ stage: 'listening', message: t.listeningStatus });
         shouldListenRef.current = true;
@@ -364,9 +372,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const handleToggleMic = useCallback(() => {
     const nextState = !isMicOn;
+    
+    // We keep the local track enabled for STT processing only.
+    // We do NOT send it to peers (Pure AI Bridge).
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach(track => { track.enabled = nextState; });
     }
+
     if (nextState) {
       shouldListenRef.current = true;
       startListening();
@@ -376,10 +388,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       stopListening();
       setProcessingStatus({ stage: 'idle', message: '' });
     }
+
     setMicOn(nextState);
     const updates = { isMicOn: nextState };
     updateParticipant(participantId, updates);
     socketUpdateParticipant(updates);
+    
+    // IMPORTANT: Only send data updates, never send the raw audio track.
     peerSendData({ type: 'participant-update', payload: { id: participantId, ...updates } as Participant });
   }, [isMicOn, startListening, stopListening, setMicOn, setProcessingStatus, updateParticipant, participantId, socketUpdateParticipant, peerSendData, t]);
 
