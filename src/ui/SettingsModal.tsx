@@ -16,7 +16,7 @@ export default function SettingsModal() {
     isCameraMirrored, setCameraMirrored,
     isCameraOn
   } = useRoomStore();
-  const { getDevices, startCamera } = useMediaDevices();
+  const { getDevices, startCamera, startAudio } = useMediaDevices();
   const t = getTranslations(uiLanguage);
 
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -47,6 +47,8 @@ export default function SettingsModal() {
       }
     } else {
       setSelectedAudioInputDevice(deviceId);
+      // BUG-FIX: Restart audio track when mic is changed
+      setTimeout(() => startAudio(), 100);
     }
   };
 

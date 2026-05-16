@@ -8,6 +8,10 @@ interface UseMediaDevicesReturn {
   toggleCamera: () => Promise<void>;
   replaceVideoTrack: (track: MediaStreamTrack | null) => void;
   
+  // Audio
+  startAudio: () => Promise<MediaStream | null>;
+  stopAudio: () => void;
+  
   // Screen share
   startScreenShare: () => Promise<MediaStream | null>;
   stopScreenShare: () => void;
@@ -24,11 +28,14 @@ interface UseMediaDevicesReturn {
 export function useMediaDevices(): UseMediaDevicesReturn {
   const {
     isCameraOn,
+    isMicOn,
     isScreenSharing,
     localStream,
     selectedVideoDevice,
+    selectedAudioInputDevice,
     cameraResolution,
     setCameraOn,
+    setMicOn,
     setScreenSharing,
     setLocalStream,
     setLocalScreenStream,
@@ -45,16 +52,14 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const getDevices = useCallback(async (): Promise<MediaDeviceInfo[]> => {
     try {
       // First, we need to request permission to get labels
-      if (!localStream) {
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        tempStream.getTracks().forEach(track => track.stop());
-      }
+      const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      tempStream.getTracks().forEach(track => track.stop());
       return await navigator.mediaDevices.enumerateDevices();
     } catch (err) {
       console.error('Error enumerating devices:', err);
       return [];
     }
-  }, [localStream]);
+  }, []);
 
   // ─── Camera ───────────────────────────────────────────────────
 
@@ -85,6 +90,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       cameraStreamRef.current = stream;
       const videoTrack = stream.getVideoTracks()[0];
       
+      let newStream: MediaStream;
       if (localStream) {
         // Clear existing video tracks
         localStream.getVideoTracks().forEach(track => {
@@ -92,32 +98,78 @@ export function useMediaDevices(): UseMediaDevicesReturn {
           localStream.removeTrack(track);
         });
 
-        // Create a NEW MediaStream instance to trigger React state update
-        const newStream = new MediaStream([
+        newStream = new MediaStream([
           ...localStream.getAudioTracks(),
           videoTrack
         ]);
-        
-        setLocalStream(newStream);
-        setCameraOn(true);
-        return newStream;
       } else {
-        setLocalStream(stream);
-        setCameraOn(true);
-        return stream;
+        newStream = stream;
       }
+      
+      setLocalStream(newStream);
+      setCameraOn(true);
+      return newStream;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to access camera';
-      if (message.includes('Permission denied') || message.includes('NotAllowedError')) {
-        setCameraError('Camera permission denied. Please allow camera access.');
-      } else if (message.includes('NotFoundError')) {
-        setCameraError('No camera found. Please connect a camera.');
-      } else {
-        setCameraError(message);
-      }
+      setCameraError(message);
       return null;
     }
   }, [cameraResolution, localStream, selectedVideoDevice, setCameraOn, setLocalStream]);
+
+  // ─── Audio ────────────────────────────────────────────────────
+
+  const startAudio = useCallback(async (): Promise<MediaStream | null> => {
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          deviceId: selectedAudioInputDevice ? { exact: selectedAudioInputDevice } : undefined,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const audioTrack = stream.getAudioTracks()[0];
+      
+      // Initial mic state
+      audioTrack.enabled = isMicOn;
+
+      let newStream: MediaStream;
+      if (localStream) {
+        // Clear existing audio tracks
+        localStream.getAudioTracks().forEach(track => {
+          track.stop();
+          localStream.removeTrack(track);
+        });
+
+        newStream = new MediaStream([
+          ...localStream.getVideoTracks(),
+          audioTrack
+        ]);
+      } else {
+        newStream = stream;
+      }
+
+      setLocalStream(newStream);
+      return newStream;
+    } catch (err) {
+      console.error('Failed to start audio:', err);
+      return null;
+    }
+  }, [selectedAudioInputDevice, isMicOn, localStream, setLocalStream]);
+
+  const stopAudio = useCallback(() => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.stop();
+        localStream.removeTrack(track);
+      });
+      setLocalStream(new MediaStream([...localStream.getVideoTracks()]));
+    }
+    setMicOn(false);
+  }, [localStream, setLocalStream, setMicOn]);
 
   const stopCamera = useCallback(() => {
     if (cameraStreamRef.current) {
@@ -222,6 +274,8 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     stopCamera,
     toggleCamera,
     replaceVideoTrack,
+    startAudio,
+    stopAudio,
     startScreenShare,
     stopScreenShare,
     toggleScreenShare,

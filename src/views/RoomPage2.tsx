@@ -52,7 +52,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
-  const [localStream, setLocalStreamState] = useState<MediaStream | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const myLanguageRef = useRef(myLanguage);
@@ -70,6 +69,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const {
     processingStatus, sidePanelOpen, participants,
     isMicOn, isCameraOn: isCameraOnStore, audioPlaybackEnabled,
+    localStream: storeLocalStream,
     setMicOn, setCameraOn, addParticipant, updateParticipant,
     addChatMessage, setMyId: setStoreMyId,
     setProcessingStatus, createRoom, leaveRoom, setLocalStream: setStoreLocalStream,
@@ -79,8 +79,15 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const {
     startCamera,
     stopCamera,
+    startAudio,
     replaceVideoTrack,
   } = useMediaDevices();
+
+  // Keep localStreamRef in sync with store
+  useEffect(() => {
+    localStreamRef.current = storeLocalStream;
+    if (localVideoRef.current) localVideoRef.current.srcObject = storeLocalStream;
+  }, [storeLocalStream]);
 
   const handleRemoteStream = useCallback((stream: MediaStream, _peerId?: string) => {
     setRemoteStream(stream);
@@ -277,49 +284,32 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, []);
 
   useEffect(() => {
-    if (phase === 'connecting' && isPeerReady && role === 'guest' && localStream) {
-      connectToHost(localStream);
+    if (phase === 'connecting' && isPeerReady && role === 'guest' && storeLocalStream) {
+      // PURE AI BRIDGE: Only send Video tracks to peers.
+      const videoOnlyStream = new MediaStream(storeLocalStream.getVideoTracks());
+      connectToHost(videoOnlyStream);
     }
-  }, [phase, isPeerReady, role, connectToHost, localStream]);
+  }, [phase, isPeerReady, role, connectToHost, storeLocalStream]);
 
   useEffect(() => {
-    if (phase === 'setup' || !isPeerReady || !localStream) return;
+    if (phase === 'setup' || !isPeerReady || !storeLocalStream) return;
     participants
       .map((p) => p.peerId)
       .filter((peerId): peerId is string => Boolean(peerId && peerId !== myPeerId))
       .forEach((peerId) => {
-        connectToPeer(peerId, localStream);
+        // PURE AI BRIDGE: Only send Video tracks to peers.
+        const videoOnlyStream = new MediaStream(storeLocalStream.getVideoTracks());
+        connectToPeer(peerId, videoOnlyStream);
       });
-  }, [phase, isPeerReady, localStream, participants, myPeerId, connectToPeer]);
+  }, [phase, isPeerReady, storeLocalStream, participants, myPeerId, connectToPeer]);
 
-  const getMediaStream = useCallback(async () => {
-    let stream: MediaStream | null = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: enableCamera ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
-      });
-    } catch {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-          }
-        });
-      } catch { return null; }
+  // Sync video track changes to peers automatically
+  useEffect(() => {
+    if (storeLocalStream) {
+      const videoTrack = storeLocalStream.getVideoTracks()[0] || null;
+      peerReplaceVideoTrack(videoTrack);
     }
-    if (stream && !enableMic) stream.getAudioTracks().forEach(t => { t.enabled = false; });
-    localStreamRef.current = stream;
-    setLocalStreamState(stream);
-    setStoreLocalStream(stream);
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-    return stream;
-  }, [enableMic, enableCamera, setStoreLocalStream]);
+  }, [storeLocalStream, peerReplaceVideoTrack]);
 
   const handleStartSession = useCallback(async () => {
     if (customRoomId && customRoomId !== roomId) {
@@ -335,32 +325,27 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     addParticipant(myParticipant);
     setMicOn(enableMic);
     setCameraOn(enableCamera);
-    const stream = await getMediaStream();
-    if (stream) {
-      // Ensure tracks match the intended state
-      stream.getAudioTracks().forEach(track => {
-        track.enabled = enableMic;
-      });
 
-      // PURE AI BRIDGE: Only send Video tracks to peers. 
-      // Do NOT send Audio tracks via PeerConnection to ensure only translated audio is heard.
-      const videoOnlyStream = new MediaStream(stream.getVideoTracks());
-      setPeerLocalStream(videoOnlyStream);
+    // Start Audio and Camera using useMediaDevices
+    await startAudio();
+    if (enableCamera) {
+      await startCamera();
+    }
 
-      if (enableMic && isSupported) {
-        setProcessingStatus({ stage: 'listening', message: t.listeningStatus });
-        shouldListenRef.current = true;
-        if (role === 'host') {
+    if (enableMic && isSupported) {
+      setProcessingStatus({ stage: 'listening', message: t.listeningStatus });
+      shouldListenRef.current = true;
+      if (role === 'host') {
+        startListening();
+        setMicOn(true);
+      } else {
+        setTimeout(() => {
           startListening();
           setMicOn(true);
-        } else {
-          setTimeout(() => {
-            startListening();
-            setMicOn(true);
-          }, 1200);
-        }
+        }, 1200);
       }
     }
+    
     const ttsPlayer = ttsAudioRef.current;
     if (ttsPlayer) {
       ttsPlayer.src = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXv7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/v7+/////////////wAAAEhMYXZjNTkuMzcuMTAwAAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs9SR+AAAAAAAAAAAAAAAAAAAA//OEAQAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OEAwAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//OEBAAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
@@ -368,7 +353,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     }
     setCameraOn(enableCamera);
     setTimeout(() => setPhase('active'), role === 'host' ? 0 : 2000);
-  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, getMediaStream, setPeerLocalStream, connectToHost, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t]);
+  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId]);
 
   const handleToggleMic = useCallback(() => {
     const nextState = !isMicOn;
@@ -450,7 +435,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <button onClick={handleCopyLink} className={`py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${copied ? 'bg-green-600 text-white' : 'bg-brand-neon text-brand-dark shadow-lg shadow-brand-neon/20'}`}>
-              {copied ? <><Check className="w-5 h-5" /> {t.linkCopied}</> : <><Copy className="w-5 h-5" /> {t.copyRoomLinkBtn}</>}
+              {copied ? <><Check className="w-4 h-4 text-green-500" /> {t.linkCopied}</> : <><Copy className="w-5 h-5" /> {t.copyRoomLinkBtn}</>}
             </button>
             <button onClick={handleShareLink} className="py-4 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl font-bold text-brand-dark dark:text-white/90 flex items-center justify-center gap-2">
               <Share2 className="w-5 h-5" /> {t.shareBtn}
@@ -596,23 +581,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
                 addChatMessage(msg);
                 socketSendChat(msg);
                 peerSendData({ type: 'chat', payload: msg });
-              }}
-            />
-          </div>
-        )}
-      </div>
-      <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} onStartScreenShare={peerStartScreenShare} onStopScreenShare={peerStopScreenShare} />
-    </div>
-  );
-
-  return (
-    <>
-      <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
-      {phase === 'setup' ? renderSetup() : phase === 'connecting' ? renderConnecting() : renderActive()}
-    </>
-  );
-}
-               peerSendData({ type: 'chat', payload: msg });
               }}
             />
           </div>
