@@ -34,6 +34,7 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
 
     console.log(`🔌 Connecting to Socket.IO signaling...`);
     const socket = io({
+      path: '/socket-signal',
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 20,
       reconnectionDelay: 2000,

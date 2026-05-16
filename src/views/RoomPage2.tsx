@@ -54,7 +54,9 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   // ─── Refs ─────────────────────────────────────────────────────────
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const [localStream, setLocalStreamState] = useState<MediaStream | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+
 
   const myLanguageRef = useRef(myLanguage);
   useEffect(() => { myLanguageRef.current = myLanguage; }, [myLanguage]);
@@ -339,11 +341,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (phase === 'connecting' && isPeerReady && role === 'guest' && localStreamRef.current) {
+    if (phase === 'connecting' && isPeerReady && role === 'guest' && localStream) {
       console.log('🚀 Guest initiating direct P2P connection to Host...');
-      connectToHost(localStreamRef.current);
+      connectToHost(localStream);
     }
-  }, [phase, isPeerReady, role, connectToHost]);
+  }, [phase, isPeerReady, role, connectToHost, localStream]);
 
 
   const getMediaStream = useCallback(async () => {
@@ -358,6 +360,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     }
     if (stream && !enableMic) stream.getAudioTracks().forEach(t => { t.enabled = false; });
     localStreamRef.current = stream;
+    setLocalStreamState(stream);
     setLocalStream(stream);
     if (localVideoRef.current) localVideoRef.current.srcObject = stream;
     return stream;

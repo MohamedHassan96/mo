@@ -18,6 +18,7 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
+  path: '/socket-signal',
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
