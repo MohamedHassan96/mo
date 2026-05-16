@@ -44,7 +44,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const normalizedRoomId = roomId.trim().toLowerCase();
   const myPeerId = useMemo(() => role === 'host' ? normalizedRoomId : `guest-${uuid().slice(0, 8)}`, [role, normalizedRoomId]);
 
-  const [enableCamera, setEnableCamera] = useState(true);
+  const [enableCamera, setEnableCamera] = useState(false);
   const [enableMic, setEnableMic] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [customRoomId, setCustomRoomId] = useState(roomId);
