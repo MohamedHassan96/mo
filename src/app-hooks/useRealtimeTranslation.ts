@@ -6,6 +6,7 @@
 import { useCallback, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useRoomStore } from '@/state/roomStore';
+import { useConfigStore } from '@/state/configStore';
 import type { TranscriptEntry, ParticipantRole } from '@/types';
 
 interface TranslationOptions {
@@ -18,6 +19,7 @@ interface TranslationOptions {
 
 export function useRealtimeTranslation() {
   const { addTranscript, setProcessingStatus, audioPlaybackEnabled } = useRoomStore();
+  const { elevenLabsApiKey } = useConfigStore((state) => state.config);
   const processingRef = useRef(false); // kept for future use
   void processingRef; // suppress unused warning
 
@@ -49,6 +51,8 @@ export function useRealtimeTranslation() {
           ?? new Audio();
 
         try {
+          if (!elevenLabsApiKey) throw new Error('Missing ElevenLabs API key');
+
           const voiceId = language === 'ar'
             ? 'cjVigY5qzO86Huf0OWal'
             : 'EXAVITQu4vr4xnSDxMaL';
@@ -58,7 +62,7 @@ export function useRealtimeTranslation() {
             {
               method: 'POST',
               headers: {
-                'xi-api-key': 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
+                'xi-api-key': elevenLabsApiKey,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
@@ -102,7 +106,7 @@ export function useRealtimeTranslation() {
       ttsQueueRef.current.push(task);
       drainTTSQueue();
     });
-  }, [audioPlaybackEnabled, drainTTSQueue]);
+  }, [audioPlaybackEnabled, drainTTSQueue, elevenLabsApiKey]);
 
   // debounce timer لترجمة النصوص المؤقتة تلقائياً
   const interimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

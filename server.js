@@ -4,9 +4,30 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function loadLocalEnv() {
+  const envPath = path.join(__dirname, '.env');
+  if (!fs.existsSync(envPath)) return;
+
+  for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadLocalEnv();
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
 
 const app = express();
 app.use(cors());
@@ -16,7 +37,9 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     service: 'talkbridge',
-    socketPath: '/socket-signal'
+    socketPath: '/socket-signal',
+    groqConfigured: Boolean(GROQ_API_KEY),
+    elevenLabsConfigured: Boolean(ELEVENLABS_API_KEY)
   });
 });
 
@@ -45,6 +68,10 @@ const rooms = {};
 // Helper: Translation API
 async function translateText(text, sourceLang, targetLang) {
   if (!text || sourceLang === targetLang) return text;
+  if (!GROQ_API_KEY) {
+    console.error('[Translate] Missing GROQ_API_KEY');
+    return text;
+  }
   
   const systemPrompt = `You are a strict real-time translator bridge. Translate the following text from ${sourceLang} to ${targetLang}.
 RULES:
@@ -56,7 +83,7 @@ RULES:
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer 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`,
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -80,13 +107,17 @@ RULES:
 // Helper: TTS API
 async function generateTTS(text, language) {
   if (!text) return '';
+  if (!ELEVENLABS_API_KEY) {
+    console.error('[TTS] Missing ELEVENLABS_API_KEY');
+    return '';
+  }
   const voiceId = language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL';
   
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
       headers: {
-        'xi-api-key': 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
+        'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

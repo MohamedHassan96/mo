@@ -1,5 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -13,6 +14,26 @@ if (!globalThis.__talkbridge_rooms) globalThis.__talkbridge_rooms = {};
 
 const rooms: Record<string, Record<string, any>> = globalThis.__talkbridge_rooms;
 
+function loadLocalEnv() {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (!fs.existsSync(envPath)) return;
+
+  for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const value = trimmed.slice(eq + 1).trim();
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadLocalEnv();
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+
 const LANG_NAMES: Record<string, string> = {
   ar: 'Arabic', en: 'English', fr: 'French', de: 'German',
   es: 'Spanish', it: 'Italian', pt: 'Portuguese', ru: 'Russian',
@@ -22,6 +43,10 @@ const LANG_NAMES: Record<string, string> = {
 
 async function translateText(text: string, sourceLang: string, targetLang: string): Promise<string> {
   if (!text?.trim() || sourceLang === targetLang) return text;
+  if (!GROQ_API_KEY) {
+    console.error('[Translate] Missing GROQ_API_KEY');
+    return text;
+  }
   const srcName = LANG_NAMES[sourceLang] || sourceLang;
   const tgtName = LANG_NAMES[targetLang] || targetLang;
   const systemPrompt = `You are a silent real-time speech translator. Your ONLY job is to translate speech.
@@ -40,7 +65,7 @@ CRITICAL RULES:
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer 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',
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -67,6 +92,10 @@ CRITICAL RULES:
 
 async function generateTTS(text: string, language: string): Promise<string> {
   if (!text?.trim()) return '';
+  if (!ELEVENLABS_API_KEY) {
+    console.error('[TTS] Missing ELEVENLABS_API_KEY');
+    return '';
+  }
   let voiceId: string;
   if (language === 'ar')      voiceId = 'cjVigY5qzO86Huf0OWal';
   else if (language === 'fr') voiceId = 'VR6AewLTigWG4xSOukaG';
@@ -78,7 +107,7 @@ async function generateTTS(text: string, language: string): Promise<string> {
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
-        'xi-api-key': 'sk_843dd615cc8adc26fe700c0cb742e6067c6c94d256da1126',
+        'xi-api-key': ELEVENLABS_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
