@@ -192,6 +192,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     setLocalStream: setPeerLocalStream,
     startScreenShare: peerStartScreenShare,
     stopScreenShare: peerStopScreenShare,
+    replaceVideoTrack: peerReplaceVideoTrack,
     disconnect: peerDisconnect,
     sendData: peerSendData
   } = usePeerConnection({
@@ -393,14 +394,20 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     if (nextOn) {
       const stream = await startCamera();
       if (stream) {
-        replaceVideoTrack(stream.getVideoTracks()[0]);
+        const videoTrack = stream.getVideoTracks()[0];
+        setPeerLocalStream(stream); // Update Peer connection ref
+        replaceVideoTrack(videoTrack); // Update local store/UI
+        peerReplaceVideoTrack(videoTrack); // Send to all current peers
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       }
     } else {
       stopCamera();
-      replaceVideoTrack(null);
+      // When camera is off, we still have audio in the stream
+      if (localStreamRef.current) setPeerLocalStream(localStreamRef.current); 
+      replaceVideoTrack(null); // Clear local UI
+      peerReplaceVideoTrack(null); // Notify current peers
     }
-  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera, replaceVideoTrack]);
+  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera, replaceVideoTrack, peerReplaceVideoTrack, setPeerLocalStream]);
 
   const handleEndCall = useCallback(() => {
     stopListening();

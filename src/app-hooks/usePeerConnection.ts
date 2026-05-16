@@ -277,9 +277,11 @@ export function usePeerConnection(opts: Options) {
 
   const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
     connsRef.current.forEach((conn) => {
-      if (conn.mc && track && conn.mc.peerConnection) {
+      if (conn.mc && conn.mc.peerConnection) {
         const sender = conn.mc.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
-        sender?.replaceTrack(track).catch(console.error);
+        if (sender) {
+          sender.replaceTrack(track).catch(console.error);
+        }
       }
     });
   }, []);
