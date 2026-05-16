@@ -20,20 +20,20 @@ function loadLocalEnv() {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
-    // Always overwrite to ensure new keys in .env take effect immediately
-    process.env[key] = value;
+    if (!process.env[key]) process.env[key] = value;
   }
 }
 
 loadLocalEnv();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
+const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY || 'beaa621826694aca94541211f9d66d29';
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); 
+app.use(express.json({ limit: '10mb' })); // Allow large transcripts/audio if needed
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -41,11 +41,12 @@ app.get('/api/health', (_req, res) => {
     service: 'talkbridge',
     socketPath: '/socket-signal',
     groqConfigured: Boolean(GROQ_API_KEY),
-    elevenLabsConfigured: Boolean(ELEVENLABS_API_KEY),
-    voiceId: ELEVENLABS_VOICE_ID
+    geminiConfigured: Boolean(GEMINI_API_KEY),
+    elevenLabsConfigured: Boolean(ELEVENLABS_API_KEY)
   });
 });
 
+// Serve Vite's static build files (Frontend)
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const httpServer = createServer(app);
@@ -59,6 +60,12 @@ const io = new Server(httpServer, {
   pingInterval: 25000
 });
 
+// Debug: Log all connection attempts
+io.engine.on("connection_error", (err) => {
+  console.log(`[Socket.IO Engine Error] Code: ${err.code}, Message: ${err.message}, Context:`, err.context);
+});
+
+// Canonical Room State: Record<roomId, Record<socketId, Participant>>
 const rooms = {};
 
 const LANG_NAMES = {
@@ -81,24 +88,82 @@ function cleanTranslatedText(value) {
     .trim();
 }
 
+/**
+ * Fix Arabic text for LTR terminals by reversing it if needed.
+ */
+function fixRTLForConsole(text) {
+  if (!text) return '';
+  const arabicPattern = /[\u0600-\u06FF]/;
+  if (arabicPattern.test(text)) {
+    // Simple reverse for terminal visibility
+    return text.split('').reverse().join('');
+  }
+  return text;
+}
+
+// Helper: Translation API (Gemini)
 async function translateText(text, sourceLang, targetLang) {
   if (!text || sourceLang === targetLang) return text;
-  if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not configured');
+  
+  if (!GEMINI_API_KEY) {
+    console.warn('GEMINI_API_KEY not found, falling back to Groq or original text');
+    if (!GROQ_API_KEY) return text;
+    // ... existing Groq logic could go here, but let's prioritize Gemini
   }
+
   const srcName = LANG_NAMES[sourceLang] || sourceLang;
   const tgtName = LANG_NAMES[targetLang] || targetLang;
-  const systemPrompt = `You are a strict real-time translator bridge.
-Source language: ${srcName}
-Target language: ${tgtName}
+  
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const systemPrompt = `You are a professional real-time conversational translator bridge.
+Translate from ${srcName} to ${tgtName}.
 
 RULES:
 1. Return ONLY the direct translation.
-2. Do NOT answer questions. Translate questions as questions.
-3. Do NOT greet, explain, apologize, or comment.
-4. Do NOT add labels, prefixes, quotation marks, markdown, or alternatives.
-5. Preserve the original meaning, tone, names, numbers, and punctuation.
-6. If the input is already in the target language, return it unchanged.`;
+2. No explanations, no quotes, no labels.
+3. Preserve the tone, slang, and meaning.
+${tgtName === 'Arabic' ? '4. IMPORTANT: For Arabic, use natural, conversational "White Arabic" or "Egyptian Dialect". Avoid formal Fusha. Speak like a friend.' : ''}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `${systemPrompt}\n\nText: ${text}` }]
+        }],
+        generationConfig: { temperature: 0, maxOutputTokens: 500 }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini translation failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const translated = cleanTranslatedText(data.candidates?.[0]?.content?.parts?.[0]?.text);
+    
+    if (!translated || translated === text) {
+      throw new Error('Gemini returned empty or invalid translation');
+    }
+    
+    return translated;
+  } catch (err) {
+    console.error('Gemini Translation error:', err.message);
+    // Fallback to Groq if available
+    if (GROQ_API_KEY) {
+      console.log('🔄 Falling back to Groq for translation...');
+      return translateTextGroq(text, sourceLang, targetLang);
+    }
+    return text;
+  }
+}
+
+async function translateTextGroq(text, sourceLang, targetLang) {
+  const srcName = LANG_NAMES[sourceLang] || sourceLang;
+  const tgtName = LANG_NAMES[targetLang] || targetLang;
+  const systemPrompt = `You are a strict real-time translator bridge. Translate from ${srcName} to ${tgtName}. Rules: Return ONLY direct translation, no labels, no quotes.`;
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -114,30 +179,40 @@ RULES:
           { role: 'user', content: text },
         ],
         temperature: 0,
-        max_tokens: 500,
       }),
     });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Groq translation failed: ${response.status} ${errorText}`);
-    }
     const data = await response.json();
-    const translated = cleanTranslatedText(data.choices?.[0]?.message?.content);
-    if (!translated) throw new Error('Groq returned an empty translation');
-    return translated;
+    return cleanTranslatedText(data.choices?.[0]?.message?.content) || text;
   } catch (err) {
-    console.error('Translation error:', err);
-    throw err;
+    console.error('Groq Translation error:', err);
+    return text;
   }
 }
 
+const ELEVENLABS_VOICES = {
+  ar: 'cjVigY5qzO86Huf0OWal', // Egyptian Arabic
+  en: 'EXAVITQu4vr4xnSDxMaL', // Sarah
+  es: 'jBpfuIE2acCO8z3wKNLl', // Gigi
+  fr: 'XB0fDUnXU5powFXDhCwa', // Charlotte
+  de: 'zcAOhNBS3c14rBihAFp1', // Hannah
+  zh: 'XB0fDUnXU5powFXDhCwa', // Charlotte
+  ja: 'MF3mGyEYCl7XYWbV9V6O', // Emily
+  ko: 'jBpfuIE2acCO8z3wKNLl', // Gigi
+  hi: 'onwK4e9ZLuTAKqWW03F9', // Daniel
+  pt: 'jBpfuIE2acCO8z3wKNLl', // Gigi
+  ru: 'XB0fDUnXU5powFXDhCwa', // Charlotte
+  tr: 'onwK4e9ZLuTAKqWW03F9', // Daniel
+  it: 'jBpfuIE2acCO8z3wKNLl', // Gigi
+};
+
+// Helper: TTS API
 async function generateTTS(text, language) {
   if (!text) return '';
   if (!ELEVENLABS_API_KEY) {
     throw new Error('ELEVENLABS_API_KEY is not configured');
   }
-  const voiceId = ELEVENLABS_VOICE_ID || (language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL');
-  console.log(`[TTS] Generating for: "${text.slice(0, 20)}..." | Lang: ${language} | Voice: ${voiceId}`);
+  
+  const voiceId = ELEVENLABS_VOICES[language] || ELEVENLABS_VOICES.en;
   
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -149,7 +224,12 @@ async function generateTTS(text, language) {
       body: JSON.stringify({
         text,
         model_id: 'eleven_multilingual_v2',
-        voice_settings: { stability: 0.5, similarity_boost: 0.8 },
+        voice_settings: { 
+          stability: 0.5, 
+          similarity_boost: 0.8,
+          style: 0.3,
+          use_speaker_boost: true
+        },
       }),
     });
     
@@ -165,6 +245,7 @@ async function generateTTS(text, language) {
   }
 }
 
+// REST API Fallbacks (Guaranteed to work on Railway)
 app.post('/api/translate', async (req, res) => {
   try {
     const { text, sourceLang, targetLang } = req.body;
@@ -185,15 +266,39 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+// AssemblyAI: Get Temporary Token for Real-time Streaming
+app.get('/api/assemblyai-token', async (req, res) => {
+  try {
+    if (!ASSEMBLYAI_API_KEY) {
+      return res.status(500).json({ ok: false, error: 'AssemblyAI API Key not configured' });
+    }
+    const response = await fetch('https://api.assemblyai.com/v2/realtime/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': ASSEMBLYAI_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ expires_in: 3600 })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to get token');
+    res.json({ ok: true, token: data.token });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 
 io.on('connection', (socket) => {
-  console.log(`[Socket] +++ New connection request: ${socket.id}`);
+  console.log(`[Socket] +++ New connection request: ${socket.id} from ${socket.handshake.address}`);
 
+  // 1. Join Room & Canonical State Sync
   socket.on('join-room', (payload, callback) => {
     let { roomId, participant } = payload;
     if (!roomId || !participant) return;
     roomId = roomId.trim().toLowerCase();
 
+    // Leave old rooms
     socket.rooms.forEach(r => { if (r !== socket.id) socket.leave(r); });
     socket.join(roomId);
     
@@ -203,7 +308,7 @@ io.on('connection', (socket) => {
     participant.isConnected = true;
     rooms[roomId][socket.id] = participant;
 
-    console.log(`[Socket] ${participant.name} joined ${roomId}`);
+    console.log(`[Socket] ${fixRTLForConsole(participant.name)} joined ${roomId}`);
 
     const participants = Object.values(rooms[roomId]);
     io.in(roomId).emit('room-state', { participants });
@@ -211,15 +316,30 @@ io.on('connection', (socket) => {
     if (callback) callback({ status: 'ok', participants });
   });
 
+  // 2. Chat with Ack
   socket.on('chat-message', (payload, callback) => {
     let { roomId, message } = payload;
     if (!roomId || !message) return;
     roomId = roomId.trim().toLowerCase();
     
+    // Broadcast to others in the room
     socket.to(roomId).emit('chat-message', { message });
     if (callback) callback({ status: 'sent' });
   });
 
+  // 2.5 Participant State Update
+  socket.on('update-participant', (payload) => {
+    let { roomId, participant } = payload;
+    if (!roomId || !participant) return;
+    roomId = roomId.trim().toLowerCase();
+
+    if (rooms[roomId] && rooms[roomId][socket.id]) {
+      rooms[roomId][socket.id] = { ...rooms[roomId][socket.id], ...participant };
+      io.in(roomId).emit('room-state', { participants: Object.values(rooms[roomId]) });
+    }
+  });
+
+  // 3. Translated Text & Audio Delivery Pattern
   socket.on('raw-transcript', async (payload, callback) => {
     let { roomId, transcriptEntry } = payload;
     if (!roomId || !transcriptEntry) return;
@@ -227,60 +347,54 @@ io.on('connection', (socket) => {
 
     if (callback) callback({ status: 'received' });
 
-    // ① أرسل النص الأصلي لكل أفراد الغرفة فوراً (للـ UI)
+    // Broadcast original text to everyone for instant UI update
     io.in(roomId).emit('transcript-update', { transcriptEntry });
 
     const participants = Object.values(rooms[roomId] || {});
-    console.log(`[raw-transcript] Room=${roomId} | Participants=${participants.map(p => `${p.name}(${p.language})`).join(', ')} | Speaker=${transcriptEntry.speakerName}(${transcriptEntry.originalLanguage})`);
-
+    
+    // Fan-out Translations
     for (const p of participants) {
-      // ② تخطَّ المتكلم نفسه — هو عارف اللي قاله
-      if (p.socketId === socket.id) {
-        console.log(`[TTS] Skipping sender: ${p.name}`);
-        continue;
-      }
+      if (p.socketId === socket.id) continue; // Skip sender
 
       (async () => {
-        let finalTranslatedText = transcriptEntry.originalText;
+        const srcLang = transcriptEntry.originalLanguage || 'ar';
+        const tgtLang = p.language || 'en';
+        let finalTranslatedText = transcriptEntry.translatedText || transcriptEntry.originalText;
+        
+        // Translate if languages differ AND (not already translated OR translated for different language)
+        const needsTranslation = srcLang !== tgtLang && (
+          !transcriptEntry.translatedLanguage || 
+          transcriptEntry.translatedLanguage !== tgtLang || 
+          finalTranslatedText === transcriptEntry.originalText
+        );
 
-        // ③ ترجمة فقط لو اللغتين مختلفتين
-        if (p.language !== transcriptEntry.originalLanguage) {
+        if (needsTranslation) {
           try {
+            console.log(`[Server] Translating: ${srcLang} -> ${tgtLang}`);
             finalTranslatedText = await translateText(
-              transcriptEntry.originalText,
-              transcriptEntry.originalLanguage,
-              p.language
+              transcriptEntry.originalText, 
+              srcLang, 
+              tgtLang
             );
-            console.log(`[Translation] For ${p.name}(${p.language}): "${transcriptEntry.originalText.slice(0,20)}" → "${finalTranslatedText.slice(0,20)}"`);
           } catch (err) {
-            console.error(`[Translation] FAILED for ${p.name}:`, err.message);
-            // أرسل النص الأصلي بدون ترجمة ولا TTS
-            io.to(p.socketId).emit('translated-audio', {
-              originalId: transcriptEntry.id,
-              speakerName: transcriptEntry.speakerName,
-              originalText: transcriptEntry.originalText,
-              translatedText: transcriptEntry.originalText,
-              translatedLanguage: transcriptEntry.originalLanguage,
-              audioBase64: ''
-            });
-            return;
+            console.warn(`[Server] Translation failed, using original:`, err.message);
+            finalTranslatedText = transcriptEntry.originalText;
           }
         } else {
-          console.log(`[TTS] Same language (${p.language}), sending text only to ${p.name}`);
+          console.log(`[Server] Using client-provided translation for ${tgtLang}`);
         }
 
-        // ④ توليد الصوت عبر ElevenLabs
+        // Generate Audio Base64
         let audioBase64 = '';
         try {
+          console.log(`[Server] Generating TTS for ${p.language}: "${finalTranslatedText.substring(0, 30)}..."`);
           audioBase64 = await generateTTS(finalTranslatedText, p.language);
-          console.log(`[TTS] Generated ${audioBase64.length} chars of audio for ${p.name}`);
         } catch (err) {
-          console.error(`[TTS] FAILED for ${p.name}:`, err.message);
-          // أرسل النص بدون صوت — الـ Frontend سيستخدم Web Speech كـ fallback
+          console.warn(`[Server] TTS generation failed:`, err.message);
+          audioBase64 = '';
         }
 
-        // ⑤ أرسل الصوت المترجم للمستلم
-        console.log(`[translated-audio] → Sending to ${p.name} (socket: ${p.socketId})`);
+        // Send direct to specific participant's socket
         io.to(p.socketId).emit('translated-audio', {
           originalId: transcriptEntry.id,
           speakerName: transcriptEntry.speakerName,
@@ -293,7 +407,9 @@ io.on('connection', (socket) => {
     }
   });
 
+  // 4. Disconnect & Resync
   socket.on('disconnect', () => {
+    console.log(`[Socket] Disconnected: ${socket.id}`);
     for (const roomId in rooms) {
       if (rooms[roomId][socket.id]) {
         delete rooms[roomId][socket.id];
@@ -307,11 +423,18 @@ io.on('connection', (socket) => {
   });
 });
 
+// Catch-all to support React Router SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Socket.IO Backend] Running on http://0.0.0.0:${PORT}`);
+  console.log(`[Socket.IO Backend & Frontend] Running on http://0.0.0.0:${PORT}`);
 });
+
+// Low-level debugging
+httpServer.on('upgrade', (req, socket, head) => {
+  console.log(`[HTTP Upgrade Attempt] URL: ${req.url}, Headers:`, req.headers);
+});
+

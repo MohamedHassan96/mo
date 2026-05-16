@@ -97,6 +97,7 @@ export type TTSProvider = 'elevenlabs' | 'coqui' | 'browser';
 
 export interface AppConfig {
   groqApiKey: string;
+  geminiApiKey: string;
   ttsProvider: TTSProvider;
   elevenLabsApiKey: string;
   elevenLabsVoiceId: string;
