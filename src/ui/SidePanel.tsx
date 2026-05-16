@@ -49,7 +49,7 @@ export default function SidePanel({
   };
 
   return (
-    <div className="h-full w-80 xl:w-96 bg-gray-50 dark:bg-[#121212] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
+    <div className="h-full w-full bg-gray-50 dark:bg-[#121212] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
       {/* Tabs */}
       <div className="flex items-center border-b border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#121212]">
         {TABS.map((tab) => {
@@ -59,14 +59,14 @@ export default function SidePanel({
             <button
               key={tab.id}
               onClick={() => setSidePanelTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-sm font-bold transition-colors ${
+              className={`min-w-0 flex-1 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-3 text-xs sm:text-sm font-bold transition-colors ${
                 isActive
                   ? 'text-[#FF4D00] border-b-2 border-[#FF4D00]'
                   : 'text-gray-500 hover:text-gray-700 dark:text-[#A3A3A3] dark:hover:text-white'
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="truncate">{tab.label}</span>
               {count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   isActive

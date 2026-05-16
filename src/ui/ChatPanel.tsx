@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useRoomStore } from '@/state/roomStore';
-import { useConfigStore } from '@/state/configStore';
-import { translateText } from '@/services/translate';
 import { Send, Languages, Loader2 } from 'lucide-react';
 import type { ChatMessage, ParticipantRole } from '@/types';
 
@@ -28,7 +26,6 @@ export default function ChatPanel({
   onSendMessage 
 }: ChatPanelProps) {
   const { chatMessages } = useRoomStore();
-  const { config } = useConfigStore();
   const [message, setMessage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(true);
@@ -46,6 +43,19 @@ export default function ChatPanel({
   }, [uniqueMessages.length]);
 
   const isSendingRef = useRef(false);
+
+  const translateViaServer = useCallback(async (text: string, sourceLang: string, targetLang: string) => {
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, sourceLang, targetLang }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || `Translation failed: ${response.status}`);
+    }
+    return String(data.translated || '').trim();
+  }, []);
 
   const handleSend = useCallback(async () => {
     if (!message.trim() || isTranslating || isSendingRef.current) return;
@@ -66,18 +76,17 @@ export default function ChatPanel({
       };
 
       // إذا كانت الترجمة التلقائية مفعلة واللغات مختلفة
-      if (autoTranslate && config.groqApiKey && myLanguage !== partnerLanguage) {
+      if (autoTranslate && myLanguage !== partnerLanguage) {
         setIsTranslating(true);
         try {
-          const result = await translateText(
+          const translatedText = await translateViaServer(
             messageText,
             myLanguage,
-            partnerLanguage,
-            config.groqApiKey
+            partnerLanguage
           );
 
           // رسالة واحدة تحتوي على الأصل والترجمة
-          chatMessage.translatedText = result.translatedText;
+          chatMessage.translatedText = translatedText;
           chatMessage.originalLanguage = myLanguage;
           chatMessage.translatedLanguage = partnerLanguage;
         } catch (err) {
@@ -91,7 +100,7 @@ export default function ChatPanel({
     } finally {
       isSendingRef.current = false;
     }
-  }, [message, isTranslating, myId, myName, myRole, myLanguage, partnerLanguage, autoTranslate, config.groqApiKey, onSendMessage]);
+  }, [message, isTranslating, myId, myName, myRole, myLanguage, partnerLanguage, autoTranslate, translateViaServer, onSendMessage]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

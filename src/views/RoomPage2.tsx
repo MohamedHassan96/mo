@@ -26,14 +26,6 @@ interface RoomPageProps {
 
 type RoomPhase = 'setup' | 'connecting' | 'active';
 
-// BCP-47 locale map for Web Speech Synthesis \u2014 defined once at module level
-const LANG_TO_LOCALE: Record<string, string> = {
-  ar: 'ar-EG', en: 'en-US', fr: 'fr-FR', de: 'de-DE',
-  es: 'es-ES', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU',
-  zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR', tr: 'tr-TR',
-  nl: 'nl-NL', pl: 'pl-PL', hi: 'hi-IN', fa: 'fa-IR',
-};
-
 export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   // ─── State ────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<RoomPhase>('setup');
@@ -41,6 +33,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [myLanguage, setMyLanguage] = useState(role === 'host' ? 'ar' : detectBrowserLanguage());
   const [partnerLanguage, setPartnerLanguage] = useState(role === 'host' ? 'en' : 'ar');
   const [copied, setCopied] = useState(false);
+  const [copiedRoomCode, setCopiedRoomCode] = useState(false);
   const [participantId] = useState(() => uuid());
   const normalizedRoomId = roomId.trim().toLowerCase();
   // We use a predictable ID for the host's PeerJS to avoid signaling delays in production
@@ -144,41 +137,23 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       }
     };
 
-    const speakWithWebSpeech = (text: string, lang: string): Promise<void> =>
-      new Promise((resolve) => {
-        if (!('speechSynthesis' in window)) { resolve(); return; }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = LANG_TO_LOCALE[lang] || lang;
-        utterance.rate = 1.05;
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        const voices = window.speechSynthesis.getVoices();
-        if (voices.length === 0) {
-          window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.speak(utterance);
-        } else {
-          window.speechSynthesis.speak(utterance);
-        }
-      });
-
-    // شغّل الصوت (ElevenLabs أو Web Speech) بدون إيقاف الميكروفون
+    // شغّل صوت ElevenLabs فقط. لو السيرفر ما رجعش صوت، نعرض النص بدون رد آلي من المتصفح.
     if (data.audioBase64) {
       const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
       if (audio) {
         audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
         audio.onended = afterPlay;
-        audio.onerror = () => speakWithWebSpeech(data.translatedText, data.translatedLanguage).then(afterPlay);
-        audio.play().catch(() => speakWithWebSpeech(data.translatedText, data.translatedLanguage).then(afterPlay));
+        audio.onerror = afterPlay;
+        audio.play().catch(afterPlay);
         return;
       }
     }
 
-    speakWithWebSpeech(data.translatedText, data.translatedLanguage).then(afterPlay);
+    afterPlay();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateTranscript, setProcessingStatus]);
 
   const {
-    isReady: isSocketReady,
     sendChatMessage: socketSendChat,
     sendTranscript: socketSendTranscript,
     disconnect: socketDisconnect
@@ -197,20 +172,18 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onTranslatedAudio: handleTranslatedAudio
   });
 
-  // REST Fallback for Translation & TTS
+  // Server-side translation for single-user local preview.
   const translateRest = async (text: string, sourceLang: string, targetLang: string) => {
-    try {
-      const res = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, sourceLang, targetLang })
-      });
-      const data = await res.json();
-      return data.translated;
-    } catch (err) {
-      console.error('REST Translation fallback error:', err);
-      return text;
+    const res = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, sourceLang, targetLang })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Translation failed: ${res.status}`);
     }
+    return String(data.translated || '').trim();
   };
 
   const {
@@ -273,6 +246,24 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getInviteLink]);
 
+  const handleCopyRoomCode = useCallback(async () => {
+    const code = normalizedRoomId.toUpperCase();
+    try {
+      await navigator.clipboard?.writeText(code);
+    } catch {
+      const textArea = document.createElement('textarea');
+      textArea.value = code;
+      textArea.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+    setCopiedRoomCode(true);
+    setTimeout(() => setCopiedRoomCode(false), 2000);
+  }, [normalizedRoomId]);
+
   const handleShareLink = useCallback(async () => {
     const link = getInviteLink();
     if (navigator.share) {
@@ -294,11 +285,14 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       // 2. Backup: Send via PeerJS Data Channel (Direct)
       peerSendData({ type: 'transcript', payload: entry });
 
-      // 3. Fallback logic: If alone in room or socket disconnected, we can still show local translation
+      // 3. If alone in room, still show a real server translation for local preview.
       if (isFinal && participants.length === 1) {
-        // Just for visual feedback when alone
-        const translated = await translateRest(entry.originalText, myLanguage, partnerLanguage);
-        updateTranscript(entry.id, { translatedText: translated, translatedLanguage: partnerLanguage });
+        try {
+          const translated = await translateRest(entry.originalText, myLanguage, partnerLanguage);
+          updateTranscript(entry.id, { translatedText: translated, translatedLanguage: partnerLanguage });
+        } catch (err) {
+          console.error('Server translation error:', err);
+        }
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -488,18 +482,18 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   );
 
   const renderSetup = () => (
-    <div className="relative min-h-[calc(100dvh-4rem)] flex items-center justify-center p-4 bg-[#050505] overflow-hidden">
+    <div className="relative min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100dvh-5rem)] flex items-center justify-center p-3 sm:p-4 bg-gray-50 dark:bg-[#050505] overflow-hidden">
       {/* Premium Ambient Background */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#FF4D00]/20 rounded-full blur-[120px] mix-blend-screen pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] mix-blend-screen pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[260px] h-[260px] sm:w-[500px] sm:h-[500px] bg-[#FF4D00]/20 rounded-full blur-[90px] sm:blur-[120px] mix-blend-screen pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[260px] h-[260px] sm:w-[500px] sm:h-[500px] bg-indigo-600/10 rounded-full blur-[90px] sm:blur-[120px] mix-blend-screen pointer-events-none" />
 
-      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-12 gap-6 animate-fade-up">
+      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-12 gap-3 sm:gap-6 animate-fade-up">
         {/* Left: Video Preview (Glassmorphism) */}
-        <div className="lg:col-span-7 rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden relative aspect-[4/3] lg:aspect-video flex items-center justify-center group">
+        <div className="order-2 lg:order-1 lg:col-span-7 rounded-[24px] sm:rounded-[40px] bg-white/80 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden relative aspect-[16/10] sm:aspect-video flex items-center justify-center group">
           <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-700 ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
 
           {!enableCamera && (
-            <div className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-white/5 flex items-center justify-center shadow-2xl relative">
+            <div className="w-32 h-32 rounded-[32px] bg-gradient-to-br from-white to-gray-100 dark:from-[#1a1a1a] dark:to-[#0a0a0a] border border-gray-200 dark:border-white/5 flex items-center justify-center shadow-2xl relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[#FF4D00] to-[#ff7a40] opacity-20 blur-xl rounded-full" />
               <span className="relative z-10 text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#FF4D00] to-[#ff7a40]">
                 {(name || (role === 'host' ? 'م' : 'ض')).charAt(0)}
@@ -508,8 +502,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
           )}
 
           {/* Elegant Floating Controls */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-xl p-2 rounded-[24px] border border-white/10 shadow-2xl">
-            <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableMic ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'}`}>
+          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3 bg-black/60 backdrop-blur-xl p-1.5 sm:p-2 rounded-[20px] sm:rounded-[24px] border border-white/10 shadow-2xl">
+            <button onClick={() => setEnableMic(!enableMic)} className={`w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] sm:rounded-[16px] flex items-center justify-center transition-all ${enableMic ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'}`}>
               {enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
             <button onClick={async () => {
@@ -525,37 +519,47 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               } else {
                 localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = false; });
               }
-            }} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'}`}>
+            }} className={`w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] sm:rounded-[16px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'}`}>
               {enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
         {/* Right: Settings Card */}
-        <div className="lg:col-span-5 rounded-[40px] bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-8 flex flex-col relative overflow-hidden">
+        <div className="order-1 lg:order-2 lg:col-span-5 rounded-[24px] sm:rounded-[40px] bg-white/90 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-5 sm:p-8 flex flex-col relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#FF4D00]/30 to-transparent" />
 
-          <div className="flex-1 flex flex-col justify-center space-y-8">
+          <div className="flex-1 flex flex-col justify-center space-y-5 sm:space-y-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF4D00]/20 to-transparent border border-[#FF4D00]/20 mb-4">
-                <Sparkles className="w-8 h-8 text-[#FF4D00]" />
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#FF4D00]/20 to-transparent border border-[#FF4D00]/20 mb-3 sm:mb-4">
+                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-[#FF4D00]" />
               </div>
-              <h2 className="text-3xl font-black text-white tracking-tight">{role === 'host' ? 'تجهيز الغرفة' : 'الانضمام للغرفة'}</h2>
-              <p className="text-gray-400 mt-2 text-sm">استعد لبدء محادثة فورية ومترجمة</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-gray-950 dark:text-white tracking-tight">{role === 'host' ? 'تجهيز الغرفة' : 'الانضمام للغرفة'}</h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">استعد لبدء محادثة فورية ومترجمة</p>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-400 px-1">كود الغرفة</label>
-                <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} dir="ltr" className="w-full px-5 py-4 rounded-[20px] bg-black/40 border border-white/10 text-white placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all lowercase" />
+                <label className="text-sm font-bold text-gray-600 dark:text-gray-400 px-1">كود الغرفة</label>
+                <div className="relative">
+                  <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} dir="ltr" className="w-full pl-14 pr-4 sm:pr-5 py-3.5 sm:py-4 rounded-[18px] sm:rounded-[20px] bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-950 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all lowercase" />
+                  <button
+                    type="button"
+                    onClick={handleCopyRoomCode}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 text-[#FF4D00] flex items-center justify-center hover:border-[#FF4D00]/50 transition-colors"
+                    title="نسخ كود الدعوة"
+                  >
+                    {copiedRoomCode ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-400 px-1">الاسم المستعار</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? 'المضيف' : 'اسمك'} dir="rtl" className="w-full px-5 py-4 rounded-[20px] bg-black/40 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all" />
+                <label className="text-sm font-bold text-gray-600 dark:text-gray-400 px-1">الاسم المستعار</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? 'المضيف' : 'اسمك'} dir="rtl" className="w-full px-4 sm:px-5 py-3.5 sm:py-4 rounded-[18px] sm:rounded-[20px] bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-950 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <LanguageSelector value={myLanguage} onChange={setMyLanguage} label="لغتك" />
                 </div>
@@ -568,7 +572,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             </div>
           </div>
 
-          <button onClick={handleStartSession} className="mt-8 w-full py-5 bg-gradient-to-r from-[#FF4D00] to-[#ff7a40] hover:from-[#e64500] hover:to-[#ff6120] text-white rounded-[24px] text-lg font-black flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(255,77,0,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleStartSession} className="mt-6 sm:mt-8 w-full py-4 sm:py-5 bg-gradient-to-r from-[#FF4D00] to-[#ff7a40] hover:from-[#e64500] hover:to-[#ff6120] text-white rounded-[20px] sm:rounded-[24px] text-base sm:text-lg font-black flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(255,77,0,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
             <Zap className="w-6 h-6" /> {role === 'host' ? 'إنشاء الغرفة وبدء الاتصال' : 'دخول الغرفة الآن'}
           </button>
         </div>
@@ -577,11 +581,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   );
 
   const renderConnecting = () => (
-    <div className="relative min-h-[calc(100dvh-4rem)] flex items-center justify-center p-4 bg-[#050505] overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#FF4D00]/10 rounded-full blur-[100px] animate-pulse" />
+    <div className="relative min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100dvh-5rem)] flex items-center justify-center p-4 bg-gray-50 dark:bg-[#050505] overflow-hidden">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] h-[260px] sm:w-[400px] sm:h-[400px] bg-[#FF4D00]/10 rounded-full blur-[90px] sm:blur-[100px] animate-pulse" />
 
       <div className="relative z-10 text-center max-w-md animate-fade-up">
-        <div className="relative w-24 h-24 mx-auto mb-8">
+        <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6 sm:mb-8">
           <div className="absolute inset-0 border-4 border-[#FF4D00]/20 rounded-full" />
           <div className="absolute inset-0 border-4 border-[#FF4D00] rounded-full border-t-transparent animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -589,16 +593,16 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
           </div>
         </div>
 
-        <h2 className="text-3xl font-black text-white mb-4 tracking-tight">{role === 'host' ? 'في انتظار الضيف...' : 'جاري الاتصال الآمن...'}</h2>
-        <p className="text-gray-400">يتم إنشاء نفق اتصال P2P مشفر وربط الصوت المترجم</p>
+        <h2 className="text-2xl sm:text-3xl font-black text-gray-950 dark:text-white mb-3 sm:mb-4 tracking-tight">{role === 'host' ? 'في انتظار الضيف...' : 'جاري الاتصال الآمن...'}</h2>
+        <p className="text-gray-500 dark:text-gray-400">يتم إنشاء نفق اتصال P2P مشفر وربط الصوت المترجم</p>
 
         {role === 'host' && (
-          <div className="mt-10 p-6 bg-white/5 backdrop-blur-xl rounded-[32px] border border-white/10 shadow-2xl">
+          <div className="mt-8 sm:mt-10 p-4 sm:p-6 bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-[24px] sm:rounded-[32px] border border-gray-200 dark:border-white/10 shadow-xl dark:shadow-2xl">
             <div className="flex items-center gap-3 mb-6">
               <Link2 className="w-5 h-5 text-[#FF4D00]" />
-              <span className="font-bold text-white text-sm">شارك هذا الرابط للضيف:</span>
+              <span className="font-bold text-gray-950 dark:text-white text-sm">شارك هذا الرابط للضيف:</span>
             </div>
-            <div className="bg-black/50 rounded-[20px] p-4 mb-4 border border-white/5 cursor-pointer hover:border-[#FF4D00]/50 transition-colors" onClick={handleCopyLink}>
+            <div className="bg-gray-50 dark:bg-black/50 rounded-[20px] p-4 mb-4 border border-gray-200 dark:border-white/5 cursor-pointer hover:border-[#FF4D00]/50 transition-colors" onClick={handleCopyLink}>
               <p className="text-xs font-mono text-[#FF4D00] break-all">{getInviteLink()}</p>
             </div>
             <button onClick={handleCopyLink} className={`w-full py-4 rounded-[20px] font-bold flex justify-center items-center gap-2 transition-all ${copied ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]' : 'bg-[#FF4D00] hover:bg-[#e64500] text-white shadow-[0_0_20px_rgba(255,77,0,0.3)]'}`}>
@@ -611,21 +615,21 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   );
 
   const renderActive = () => (
-    <div className="h-[calc(100dvh-4rem)] flex flex-col bg-[#050505]">
+    <div className="h-[calc(100dvh-4rem)] sm:h-[calc(100dvh-5rem)] flex flex-col bg-gray-50 dark:bg-[#050505] overflow-hidden">
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
       <audio id="tts-audio-player" playsInline className="hidden" />
       {showInviteModal && renderInviteModal()}
 
       {/* Top Glass Header */}
-      <div className="bg-white/5 backdrop-blur-2xl border-b border-white/10 px-6 py-4 flex flex-col sm:flex-row items-center justify-between z-40 shadow-sm relative">
+      <div className="bg-white/85 dark:bg-white/5 backdrop-blur-2xl border-b border-gray-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between z-40 shadow-sm relative gap-3 sm:gap-0">
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-2xl border border-white/5">
+        <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-4 w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-black/40 px-3 sm:px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/5">
             <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-[#FF4D00]'} animate-pulse`} />
-            <span className="text-sm font-bold text-gray-200">{participants.length} متصل</span>
+            <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{participants.length} متصل</span>
           </div>
-          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[#FF4D00]/10 hover:bg-[#FF4D00]/20 border border-[#FF4D00]/20 text-[#FF4D00] text-sm font-bold rounded-2xl transition-all">
+          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#FF4D00]/10 hover:bg-[#FF4D00]/20 border border-[#FF4D00]/20 text-[#FF4D00] text-sm font-bold rounded-2xl transition-all">
             <UserPlus className="w-4 h-4" /> دعوة
           </button>
         </div>
@@ -634,24 +638,24 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
           <MicStatusIndicator isRecording={isListening} volume={0} processingStatus={processingStatus} />
         </div>
 
-        <div className="flex items-center gap-4 mt-4 sm:mt-0">
-          <div className="flex items-center gap-3 bg-white/5 px-5 py-2.5 rounded-2xl border border-white/10 shadow-inner">
-            <span className="text-sm font-bold text-white">{getLanguageName(myLanguage)}</span>
+        <div className="flex items-center gap-4 sm:mt-0">
+          <div className="w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 bg-gray-100 dark:bg-white/5 px-3 sm:px-5 py-2.5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-inner">
+            <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white">{getLanguageName(myLanguage)}</span>
             <ArrowRight className="w-4 h-4 text-[#FF4D00]" />
-            <span className="text-sm font-bold text-white">{getLanguageName(partnerLanguage)}</span>
+            <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white">{getLanguageName(partnerLanguage)}</span>
           </div>
         </div>
       </div>
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative p-2 sm:p-4 gap-2 sm:gap-4 bg-[#050505]">
-        <div className={`min-h-0 rounded-[24px] sm:rounded-[32px] overflow-hidden border border-white/5 relative bg-[#0a0a0a] transition-all duration-300 ${sidePanelOpen ? 'flex-1 lg:flex-1' : 'flex-1'}`}>
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative p-2 sm:p-4 gap-2 sm:gap-4 bg-gray-50 dark:bg-[#050505]">
+        <div className={`min-h-0 rounded-[20px] sm:rounded-[32px] overflow-hidden border border-gray-200 dark:border-white/5 relative bg-white dark:bg-[#0a0a0a] transition-all duration-300 flex-1`}>
           <VideoGrid />
         </div>
 
         {/* Sleek Integrated SidePanel */}
         {sidePanelOpen && (
-          <div className="w-full lg:w-[400px] flex-1 lg:flex-none lg:h-full rounded-[24px] sm:rounded-[32px] overflow-hidden bg-white/5 backdrop-blur-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex flex-col z-40 animate-fade-in shrink-0">
+          <div className="fixed inset-x-2 top-[10.75rem] bottom-[5.25rem] sm:bottom-[6rem] lg:static lg:inset-auto w-auto lg:w-[400px] lg:flex-none lg:h-full rounded-[22px] sm:rounded-[32px] overflow-hidden bg-white/95 dark:bg-[#121212]/95 lg:dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.55)] flex flex-col z-50 animate-fade-in shrink-0">
             <SidePanel
               myId={participantId}
               myName={name || (role === 'host' ? 'المضيف' : 'الضيف')}
@@ -675,14 +679,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         onStartScreenShare={peerStartScreenShare}
         onStopScreenShare={peerStopScreenShare}
       />
-      
-      {/* Visual Debug Overlay (Remove in production later) */}
-      <div className="fixed bottom-24 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-gray-400 pointer-events-none">
-        <div>Socket: <span className={isSocketReady ? 'text-green-500' : 'text-red-500'}>{isSocketReady ? 'CONNECTED' : 'DISCONNECTED'}</span></div>
-        <div>Peer: <span className={isPeerReady ? 'text-green-500' : 'text-red-500'}>{isPeerReady ? 'READY' : 'WAITING'}</span></div>
-        <div>Peers: <span className="text-white">{connectedPeers.length}</span></div>
-        <div>MyID: <span className="text-white">{myPeerId.slice(0, 8)}...</span></div>
-      </div>
     </div>
   );
 

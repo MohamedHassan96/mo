@@ -28,7 +28,7 @@ function VideoTile({
   const hasVideo = stream && stream.getVideoTracks().length > 0 && !isCameraOff;
 
   return (
-    <div className={`relative rounded-[24px] overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#1E1E1E] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[200px]`}>
+    <div className={`relative rounded-[20px] sm:rounded-[24px] overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#1E1E1E] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[220px] sm:min-h-[240px]`}>
       {hasVideo ? (
         <video
           ref={videoRef}
@@ -39,11 +39,11 @@ function VideoTile({
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-[#080808]">
-          <div className="w-20 h-20 rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#1E1E1E] shadow-lg dark:shadow-[0_0_30px_rgba(255,77,0,0.2)] flex items-center justify-center">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#1E1E1E] shadow-lg dark:shadow-[0_0_30px_rgba(255,77,0,0.2)] flex items-center justify-center">
             {isScreenShare ? (
-              <MonitorUp className="w-10 h-10 text-[#FF4D00]" />
+                <MonitorUp className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF4D00]" />
             ) : (
-              <span className="text-3xl font-bold text-[#FF4D00]">
+              <span className="text-2xl sm:text-3xl font-bold text-[#FF4D00]">
                 {name.charAt(0).toUpperCase()}
               </span>
             )}
@@ -51,9 +51,9 @@ function VideoTile({
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 flex items-center gap-3">
-        <div className="px-4 py-2 rounded-full bg-white/80 dark:bg-[#080808]/80 backdrop-blur-md border border-gray-200 dark:border-[#1E1E1E] flex items-center gap-3">
-          <span className="text-sm font-bold text-gray-900 dark:text-white tracking-wide">
+      <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-3 max-w-[calc(100%-1.5rem)] sm:max-w-[calc(100%-2rem)]">
+        <div className="min-w-0 px-3 sm:px-4 py-2 rounded-full bg-white/80 dark:bg-[#080808]/80 backdrop-blur-md border border-gray-200 dark:border-[#1E1E1E] flex items-center gap-2 sm:gap-3">
+          <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white tracking-wide">
             {name} {isLocal && '(أنت)'}
           </span>
           <div className="w-px h-4 bg-gray-300 dark:bg-[#1E1E1E]" />
@@ -125,7 +125,7 @@ export default function VideoGrid() {
       : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3';
 
   return (
-    <div className={`flex-1 grid gap-4 ${gridClass} auto-rows-fr`}>
+    <div className={`h-full min-h-0 grid gap-2 sm:gap-4 ${gridClass} auto-rows-fr overflow-y-auto`}>
       {localScreenStream && (
         <VideoTile
           stream={localScreenStream}
@@ -165,7 +165,7 @@ export default function VideoGrid() {
           />
         ))
       ) : (
-        <div className="rounded-2xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center p-8 min-h-[200px]">
+        <div className="rounded-[20px] sm:rounded-2xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center p-6 sm:p-8 min-h-[220px]">
           <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-4">
             <User className="w-8 h-8 text-gray-500" />
           </div>

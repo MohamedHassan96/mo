@@ -24,7 +24,7 @@ function loadLocalEnv() {
     const eq = trimmed.indexOf('=');
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
-    const value = trimmed.slice(eq + 1).trim();
+    const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
     if (!process.env[key]) process.env[key] = value;
   }
 }
@@ -39,13 +39,38 @@ const LANG_NAMES: Record<string, string> = {
   es: 'Spanish', it: 'Italian', pt: 'Portuguese', ru: 'Russian',
   zh: 'Chinese', ja: 'Japanese', ko: 'Korean', tr: 'Turkish',
   nl: 'Dutch', pl: 'Polish', hi: 'Hindi', fa: 'Persian',
+  uk: 'Ukrainian', bn: 'Bengali', ur: 'Urdu', he: 'Hebrew',
+  id: 'Indonesian', ms: 'Malay', th: 'Thai', vi: 'Vietnamese',
+  fil: 'Filipino', sw: 'Swahili', sv: 'Swedish', no: 'Norwegian',
+  da: 'Danish', fi: 'Finnish', el: 'Greek', ro: 'Romanian',
+  cs: 'Czech', hu: 'Hungarian', bg: 'Bulgarian',
 };
+
+function cleanTranslatedText(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .replace(/^["'«»]|["'«»]$/g, '')
+    .replace(/^(Translation|Translated text|الترجمة|ترجمة)\s*:\s*/i, '')
+    .trim();
+}
+
+async function readJsonBody(req: any): Promise<any> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  if (chunks.length === 0) return {};
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+function sendJson(res: any, statusCode: number, payload: unknown) {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(payload));
+}
 
 async function translateText(text: string, sourceLang: string, targetLang: string): Promise<string> {
   if (!text?.trim() || sourceLang === targetLang) return text;
   if (!GROQ_API_KEY) {
-    console.error('[Translate] Missing GROQ_API_KEY');
-    return text;
+    throw new Error('GROQ_API_KEY is not configured');
   }
   const srcName = LANG_NAMES[sourceLang] || sourceLang;
   const tgtName = LANG_NAMES[targetLang] || targetLang;
@@ -79,22 +104,23 @@ CRITICAL RULES:
       }),
     });
     if (!res.ok) {
-      console.error('[Translate] Groq error:', res.status, await res.text());
-      return text;
+      const errorText = await res.text();
+      throw new Error(`Groq translation failed: ${res.status} ${errorText}`);
     }
     const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || text;
+    const translated = cleanTranslatedText(data.choices?.[0]?.message?.content);
+    if (!translated) throw new Error('Groq returned an empty translation');
+    return translated;
   } catch (err) {
     console.error('[Translate] Fetch error:', err);
-    return text;
+    throw err;
   }
 }
 
 async function generateTTS(text: string, language: string): Promise<string> {
   if (!text?.trim()) return '';
   if (!ELEVENLABS_API_KEY) {
-    console.error('[TTS] Missing ELEVENLABS_API_KEY');
-    return '';
+    throw new Error('ELEVENLABS_API_KEY is not configured');
   }
   let voiceId: string;
   if (language === 'ar')      voiceId = 'cjVigY5qzO86Huf0OWal';
@@ -121,12 +147,45 @@ async function generateTTS(text: string, language: string): Promise<string> {
       console.log(`[TTS] ElevenLabs OK — lang=${language}, bytes=${buffer.byteLength}`);
       return Buffer.from(buffer).toString('base64');
     } else {
-      console.error(`[TTS] ElevenLabs error ${res.status}:`, await res.text());
+      const errorText = await res.text();
+      throw new Error(`ElevenLabs TTS failed: ${res.status} ${errorText}`);
     }
   } catch (err) {
     console.error('[TTS] ElevenLabs fetch error:', err);
+    throw err;
   }
-  return '';
+}
+
+function setupApiRoutes(server: any) {
+  server.middlewares.use('/api/translate', async (req: any, res: any) => {
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+      return;
+    }
+
+    try {
+      const { text, sourceLang, targetLang } = await readJsonBody(req);
+      const translated = await translateText(text, sourceLang, targetLang);
+      sendJson(res, 200, { ok: true, translated });
+    } catch (err: any) {
+      sendJson(res, 502, { ok: false, error: err?.message || 'Translation failed' });
+    }
+  });
+
+  server.middlewares.use('/api/tts', async (req: any, res: any) => {
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+      return;
+    }
+
+    try {
+      const { text, language } = await readJsonBody(req);
+      const audioBase64 = await generateTTS(text, language);
+      sendJson(res, 200, { ok: true, audioBase64 });
+    } catch (err: any) {
+      sendJson(res, 502, { ok: false, error: err?.message || 'TTS failed' });
+    }
+  });
 }
 
 function setupSocketIO(httpServer: any) {
@@ -201,13 +260,22 @@ function setupSocketIO(httpServer: any) {
 
           if (srcLang !== tgtLang) {
             console.log(`[Translate] ${srcLang} → ${tgtLang}: "${transcriptEntry.originalText}"`);
-            translated = await translateText(transcriptEntry.originalText, srcLang, tgtLang);
+            try {
+              translated = await translateText(transcriptEntry.originalText, srcLang, tgtLang);
+            } catch {
+              return;
+            }
             console.log(`[Translate] ✓ "${translated}"`);
           } else {
             console.log(`[Translate] Same lang (${srcLang}) — no translation`);
           }
 
-          const audioBase64 = await generateTTS(translated, tgtLang);
+          let audioBase64 = '';
+          try {
+            audioBase64 = await generateTTS(translated, tgtLang);
+          } catch {
+            audioBase64 = '';
+          }
 
           io.to(p.socketId).emit('translated-audio', {
             originalId: transcriptEntry.id,
@@ -250,6 +318,7 @@ export default defineConfig({
     {
       name: 'socket-io',
       configureServer(server) {
+        setupApiRoutes(server);
         if (!server.httpServer) return;
         setupSocketIO(server.httpServer);
       },

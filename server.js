@@ -19,7 +19,7 @@ function loadLocalEnv() {
     const eq = trimmed.indexOf('=');
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
-    const value = trimmed.slice(eq + 1).trim();
+    const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
     if (!process.env[key]) process.env[key] = value;
   }
 }
@@ -65,19 +65,45 @@ io.engine.on("connection_error", (err) => {
 // Canonical Room State: Record<roomId, Record<socketId, Participant>>
 const rooms = {};
 
+const LANG_NAMES = {
+  ar: 'Arabic', en: 'English', fr: 'French', de: 'German',
+  es: 'Spanish', it: 'Italian', pt: 'Portuguese', ru: 'Russian',
+  zh: 'Chinese', ja: 'Japanese', ko: 'Korean', tr: 'Turkish',
+  nl: 'Dutch', pl: 'Polish', hi: 'Hindi', fa: 'Persian',
+  uk: 'Ukrainian', bn: 'Bengali', ur: 'Urdu', he: 'Hebrew',
+  id: 'Indonesian', ms: 'Malay', th: 'Thai', vi: 'Vietnamese',
+  fil: 'Filipino', sw: 'Swahili', sv: 'Swedish', no: 'Norwegian',
+  da: 'Danish', fi: 'Finnish', el: 'Greek', ro: 'Romanian',
+  cs: 'Czech', hu: 'Hungarian', bg: 'Bulgarian',
+};
+
+function cleanTranslatedText(value) {
+  return String(value || '')
+    .trim()
+    .replace(/^["'«»]|["'«»]$/g, '')
+    .replace(/^(Translation|Translated text|الترجمة|ترجمة)\s*:\s*/i, '')
+    .trim();
+}
+
 // Helper: Translation API
 async function translateText(text, sourceLang, targetLang) {
   if (!text || sourceLang === targetLang) return text;
   if (!GROQ_API_KEY) {
-    console.error('[Translate] Missing GROQ_API_KEY');
-    return text;
+    throw new Error('GROQ_API_KEY is not configured');
   }
-  
-  const systemPrompt = `You are a strict real-time translator bridge. Translate the following text from ${sourceLang} to ${targetLang}.
+  const srcName = LANG_NAMES[sourceLang] || sourceLang;
+  const tgtName = LANG_NAMES[targetLang] || targetLang;
+  const systemPrompt = `You are a strict real-time translator bridge.
+Source language: ${srcName}
+Target language: ${tgtName}
+
 RULES:
 1. Return ONLY the direct translation.
-2. DO NOT answer questions, do NOT act as a chatbot, do NOT say "hello" back.
-3. Keep the exact original meaning.`;
+2. Do NOT answer questions. Translate questions as questions.
+3. Do NOT greet, explain, apologize, or comment.
+4. Do NOT add labels, prefixes, quotation marks, markdown, or alternatives.
+5. Preserve the original meaning, tone, names, numbers, and punctuation.
+6. If the input is already in the target language, return it unchanged.`;
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -87,20 +113,26 @@ RULES:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text },
         ],
-        temperature: 0.1,
+        temperature: 0,
+        max_tokens: 500,
       }),
     });
-    if (!response.ok) return text;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Groq translation failed: ${response.status} ${errorText}`);
+    }
     const data = await response.json();
-    return data.choices?.[0]?.message?.content?.trim() || text;
+    const translated = cleanTranslatedText(data.choices?.[0]?.message?.content);
+    if (!translated) throw new Error('Groq returned an empty translation');
+    return translated;
   } catch (err) {
     console.error('Translation error:', err);
-    return text;
+    throw err;
   }
 }
 
@@ -108,8 +140,7 @@ RULES:
 async function generateTTS(text, language) {
   if (!text) return '';
   if (!ELEVENLABS_API_KEY) {
-    console.error('[TTS] Missing ELEVENLABS_API_KEY');
-    return '';
+    throw new Error('ELEVENLABS_API_KEY is not configured');
   }
   const voiceId = language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL';
   
@@ -131,23 +162,33 @@ async function generateTTS(text, language) {
       const buffer = await response.arrayBuffer();
       return Buffer.from(buffer).toString('base64');
     }
+    const errorText = await response.text();
+    throw new Error(`ElevenLabs TTS failed: ${response.status} ${errorText}`);
   } catch (err) {
     console.error('TTS error:', err);
+    throw err;
   }
-  return '';
 }
 
 // REST API Fallbacks (Guaranteed to work on Railway)
 app.post('/api/translate', async (req, res) => {
-  const { text, sourceLang, targetLang } = req.body;
-  const translated = await translateText(text, sourceLang, targetLang);
-  res.json({ translated });
+  try {
+    const { text, sourceLang, targetLang } = req.body;
+    const translated = await translateText(text, sourceLang, targetLang);
+    res.json({ ok: true, translated });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message || 'Translation failed' });
+  }
 });
 
 app.post('/api/tts', async (req, res) => {
-  const { text, language } = req.body;
-  const audioBase64 = await generateTTS(text, language);
-  res.json({ audioBase64 });
+  try {
+    const { text, language } = req.body;
+    const audioBase64 = await generateTTS(text, language);
+    res.json({ ok: true, audioBase64 });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message || 'TTS failed' });
+  }
 });
 
 
@@ -211,15 +252,24 @@ io.on('connection', (socket) => {
         
         // Translate if languages differ
         if (p.language !== transcriptEntry.originalLanguage) {
-          finalTranslatedText = await translateText(
-            transcriptEntry.originalText, 
-            transcriptEntry.originalLanguage, 
-            p.language
-          );
+          try {
+            finalTranslatedText = await translateText(
+              transcriptEntry.originalText, 
+              transcriptEntry.originalLanguage, 
+              p.language
+            );
+          } catch {
+            return;
+          }
         }
 
         // Generate Audio Base64
-        const audioBase64 = await generateTTS(finalTranslatedText, p.language);
+        let audioBase64 = '';
+        try {
+          audioBase64 = await generateTTS(finalTranslatedText, p.language);
+        } catch {
+          audioBase64 = '';
+        }
 
         // Send direct to specific participant's socket
         io.to(p.socketId).emit('translated-audio', {
