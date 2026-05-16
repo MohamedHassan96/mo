@@ -51,13 +51,13 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#1E1E1E]">
         <div className="flex items-center gap-2">
-          <Volume2 className="w-4 h-4 text-[#006494]" />
+          <Volume2 className="w-4 h-4 text-[#65A30D]" />
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t.transcriptTitle}</h3>
         </div>
         {uniqueTranscripts.length > 0 && (
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1 text-xs text-[#006494] hover:text-[#004a70] transition-colors font-bold"
+            className="flex items-center gap-1 text-xs text-[#65A30D] hover:text-#65A30D transition-colors font-bold"
             title={t.transcriptExportTooltip}
           >
             <Download className="w-3.5 h-3.5" />
@@ -89,8 +89,8 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
                   <span
                     className={`text-xs font-bold ${
                       entry.speakerRole === 'host'
-                        ? 'text-[#006494]'
-                        : 'text-emerald-500'
+                        ? 'text-[#65A30D]'
+                        : 'text-green-500'
                     }`}
                   >
                     {entry.speakerName}
@@ -102,7 +102,7 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
                 <div
                   className={`max-w-[90%] rounded-2xl overflow-hidden shadow-sm ${
                     isMe
-                      ? 'bg-[#006494] rounded-br-md'
+                      ? 'bg-[#A3E635] rounded-br-md'
                       : 'bg-gray-100 dark:bg-[#1E1E1E] rounded-bl-md'
                   }`}
                 >
@@ -132,7 +132,7 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
                       <div
                         className={`flex items-center gap-1 px-4 py-0.5 ${
                           isMe
-                            ? 'bg-[#002e47]lack/10'
+                            ? 'bg-[#064E3B]lack/10'
                             : 'bg-gray-200/60 dark:bg-white/5'
                         }`}
                       >

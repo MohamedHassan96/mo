@@ -54,9 +54,9 @@ export default function SidePanel({
   };
 
   return (
-    <div className="h-full w-full bg-gray-50 dark:bg-[#112240] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
+    <div className="h-full w-full bg-gray-50 dark:bg-[#065F46] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
       {/* Tabs */}
-      <div className="flex items-center border-b border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#112240]">
+      <div className="flex items-center border-b border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#065F46]">
         {TABS.map((tab) => {
           const count = getCount(tab.id);
           const isActive = sidePanelTab === tab.id;
@@ -66,7 +66,7 @@ export default function SidePanel({
               onClick={() => setSidePanelTab(tab.id)}
               className={`min-w-0 flex-1 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-3 text-xs sm:text-sm font-bold transition-colors ${
                 isActive
-                  ? 'text-[#006494] border-b-2 border-[#006494]'
+                  ? 'text-[#65A30D] border-b-2 border-[#A3E635]'
                   : 'text-gray-500 hover:text-gray-700 dark:text-[#A3A3A3] dark:hover:text-white'
               }`}
             >
@@ -75,7 +75,7 @@ export default function SidePanel({
               {count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   isActive
-                    ? 'bg-[#006494]/10 text-[#006494]'
+                    ? 'bg-[#A3E635]/10 text-[#65A30D]'
                     : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-500 dark:text-[#A3A3A3]'
                 }`}>
                   {count}

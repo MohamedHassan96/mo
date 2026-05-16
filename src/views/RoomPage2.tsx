@@ -537,12 +537,12 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const renderInviteModal = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050505]/80 backdrop-blur-md p-4 animate-fade-in" onClick={() => setShowInviteModal(false)} dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-[32px] p-8 shadow-[0_0_80px_rgba(0,100,148,0.15)]" onClick={e => e.stopPropagation()}>
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#006494]/50 to-transparent" />
+      <div className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-[32px] p-8 shadow-[0_0_80px_rgba(163,230,53,0.15)]" onClick={e => e.stopPropagation()}>
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-#A3E635/50 to-transparent" />
 
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-[#004a70]r from-[#006494] to-[#007fb4] flex items-center justify-center shadow-lg shadow-[#006494]/20">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-brr from-[#A3E635] to-[#007fb4] flex items-center justify-center shadow-lg shadow-#A3E635/20">
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -555,15 +555,15 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
         <div className="space-y-6">
           <div className="relative group cursor-pointer" onClick={handleCopyLink} title={t.copyRoomLinkBtn}>
-            <div className="absolute inset-0 bg-gradient-to-r from-[#006494] to-[#007fb4] rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#A3E635] to-[#007fb4] rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity" />
             <div className="relative bg-[#1A1A1A] border border-white/5 rounded-2xl p-5 flex items-center justify-between gap-4">
               <p className="text-sm font-mono text-gray-300 break-all select-all text-left" dir="ltr">{getInviteLink()}</p>
-              <Copy className="w-5 h-5 text-[#006494] shrink-0" />
+              <Copy className="w-5 h-5 text-[#65A30D] shrink-0" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button onClick={handleCopyLink} className={`py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${copied ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-[#006494] hover:bg-[#004a70] text-white shadow-lg shadow-[#006494]/20'}`}>
+            <button onClick={handleCopyLink} className={`py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${copied ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-[#A3E635] hover:bg-#65A30D text-white shadow-lg shadow-#A3E635/20'}`}>
               {copied ? <><Check className="w-5 h-5" /> {t.linkCopied}</> : <><Copy className="w-5 h-5" /> {t.copyRoomLinkBtn}</>}
             </button>
             <button onClick={handleShareLink} className="py-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 transition-colors">
@@ -578,8 +578,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const renderSetup = () => (
     <div className="relative min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100dvh-5rem)] flex items-center justify-center p-3 sm:p-4 bg-gray-50 dark:bg-[#00040d] overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Premium Ambient Background */}
-      <div className="absolute top-0 left-1/4 w-[260px] h-[260px] sm:w-[500px] sm:h-[500px] bg-[#006494]/20 rounded-full blur-[90px] sm:blur-[120px] mix-blend-screen pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[260px] h-[260px] sm:w-[500px] sm:h-[500px] bg-sky-700/10 rounded-full blur-[90px] sm:blur-[120px] mix-blend-screen pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[260px] h-[260px] sm:w-[500px] sm:h-[500px] bg-[#A3E635]/20 rounded-full blur-[90px] sm:blur-[120px] mix-blend-screen pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-[260px] h-[260px] sm:w-[500px] sm:h-[500px] bg-lime-700/10 rounded-full blur-[90px] sm:blur-[120px] mix-blend-screen pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-12 gap-3 sm:gap-6 animate-fade-up">
         {/* Left: Video Preview (Glassmorphism) */}
@@ -587,16 +587,16 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
           <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-700 ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
 
           {!enableCamera && (
-            <div className="w-32 h-32 rounded-[32px] bg-gradient-to-[#004a70]r from-white to-gray-100 dark:from-[#1a1a1a] dark:to-[#0a0a0a] border border-gray-200 dark:border-white/5 flex items-center justify-center shadow-2xl relative">
-              <div className="absolute inset-0 bg-gradient-to-[#004a70]r from-[#006494] to-[#007fb4] opacity-20 blur-xl rounded-full" />
-              <span className="relative z-10 text-6xl font-black text-transparent bg-clip-text bg-gradient-to-[#004a70]r from-[#006494] to-[#007fb4]">
+            <div className="w-32 h-32 rounded-[32px] bg-gradient-to-brr from-white to-gray-100 dark:from-[#1a1a1a] dark:to-[#0a0a0a] border border-gray-200 dark:border-white/5 flex items-center justify-center shadow-2xl relative">
+              <div className="absolute inset-0 bg-gradient-to-brr from-[#A3E635] to-[#007fb4] opacity-20 blur-xl rounded-full" />
+              <span className="relative z-10 text-6xl font-black text-transparent bg-clip-text bg-gradient-to-brr from-[#A3E635] to-[#007fb4]">
                 {(name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)).charAt(0)}
               </span>
             </div>
           )}
 
           {/* Elegant Floating Controls */}
-          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3 bg-[#002e47]lack/60 backdrop-blur-xl p-1.5 sm:p-2 rounded-[20px] sm:rounded-[24px] border border-white/10 shadow-2xl">
+          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3 bg-[#064E3B]lack/60 backdrop-blur-xl p-1.5 sm:p-2 rounded-[20px] sm:rounded-[24px] border border-white/10 shadow-2xl">
             <button onClick={() => setEnableMic(!enableMic)} className={`w-11 h-11 sm:w-12 sm:h-12 rounded-[14px] sm:rounded-[16px] flex items-center justify-center transition-all ${enableMic ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]'}`}>
               {enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
@@ -619,12 +619,12 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
         {/* Right: Settings Card */}
         <div className="order-1 lg:order-2 lg:col-span-5 rounded-[24px] sm:rounded-[40px] bg-white/90 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-5 sm:p-8 flex flex-col relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[#006494]/30 to-transparent" />
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-#A3E635/30 to-transparent" />
 
           <div className="flex-1 flex flex-col justify-center space-y-5 sm:space-y-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-[#004a70]r from-[#006494]/20 to-transparent border border-[#006494]/20 mb-3 sm:mb-4">
-                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-[#006494]" />
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-brr from-[#A3E635]/20 to-transparent border border-[#A3E635]/20 mb-3 sm:mb-4">
+                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-[#65A30D]" />
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-gray-950 dark:text-white tracking-tight">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h2>
               <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">{t.roomSetupDesc}</p>
@@ -634,11 +634,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-600 dark:text-gray-400 px-1">{t.roomCodeLabel}</label>
                 <div className="relative">
-                  <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} dir="ltr" className="w-full px-4 sm:px-5 py-3.5 sm:py-4 rounded-[18px] sm:rounded-[20px] bg-gray-50 dark:bg-[#002e47]lack/40 border border-gray-200 dark:border-white/10 text-gray-950 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#006494] focus:ring-1 focus:ring-[#006494] transition-all lowercase" style={{ paddingLeft: isRtl ? '3.5rem' : '1.25rem', paddingRight: isRtl ? '1.25rem' : '3.5rem' }} />
+                  <input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} dir="ltr" className="w-full px-4 sm:px-5 py-3.5 sm:py-4 rounded-[18px] sm:rounded-[20px] bg-gray-50 dark:bg-[#064E3B]lack/40 border border-gray-200 dark:border-white/10 text-gray-950 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 font-mono tracking-widest focus:outline-none focus:border-[#A3E635] focus:ring-1 focus:ring-#A3E635 transition-all lowercase" style={{ paddingLeft: isRtl ? '3.5rem' : '1.25rem', paddingRight: isRtl ? '1.25rem' : '3.5rem' }} />
                   <button
                     type="button"
                     onClick={handleCopyRoomCode}
-                    className={`absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 text-[#006494] flex items-center justify-center hover:border-[#006494]/50 transition-colors ${isRtl ? 'left-2' : 'right-2'}`}
+                    className={`absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 text-[#65A30D] flex items-center justify-center hover:border-[#A3E635]/50 transition-colors ${isRtl ? 'left-2' : 'right-2'}`}
                     title={t.copyRoomLinkBtn}
                   >
                     {copiedRoomCode ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
@@ -648,7 +648,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-600 dark:text-gray-400 px-1">{t.nameLabel}</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} dir="auto" className="w-full px-4 sm:px-5 py-3.5 sm:py-4 rounded-[18px] sm:rounded-[20px] bg-gray-50 dark:bg-[#002e47]lack/40 border border-gray-200 dark:border-white/10 text-gray-950 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-[#006494] focus:ring-1 focus:ring-[#006494] transition-all" />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} dir="auto" className="w-full px-4 sm:px-5 py-3.5 sm:py-4 rounded-[18px] sm:rounded-[20px] bg-gray-50 dark:bg-[#064E3B]lack/40 border border-gray-200 dark:border-white/10 text-gray-950 dark:text-white placeholder-gray-500 dark:placeholder-gray-600 focus:outline-none focus:border-[#A3E635] focus:ring-1 focus:ring-#A3E635 transition-all" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -664,7 +664,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             </div>
           </div>
 
-          <button onClick={handleStartSession} className="mt-6 sm:mt-8 w-full py-4 sm:py-5 bg-gradient-to-r from-[#006494] to-[#007fb4] hover:from-[#004a70] hover:to-[#ff6120] text-white rounded-[20px] sm:rounded-[24px] text-base sm:text-lg font-black flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(0,100,148,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleStartSession} className="mt-6 sm:mt-8 w-full py-4 sm:py-5 bg-gradient-to-r from-[#A3E635] to-[#007fb4] hover:from-#65A30D hover:to-[#ff6120] text-white rounded-[20px] sm:rounded-[24px] text-base sm:text-lg font-black flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(163,230,53,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
             <Zap className="w-6 h-6" /> {role === 'host' ? t.startButtonHost : t.startButtonGuest}
           </button>
         </div>
@@ -674,14 +674,14 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const renderConnecting = () => (
     <div className="relative min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100dvh-5rem)] flex items-center justify-center p-4 bg-gray-50 dark:bg-[#00040d] overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] h-[260px] sm:w-[400px] sm:h-[400px] bg-[#006494]/10 rounded-full blur-[90px] sm:blur-[100px] animate-pulse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[260px] h-[260px] sm:w-[400px] sm:h-[400px] bg-[#A3E635]/10 rounded-full blur-[90px] sm:blur-[100px] animate-pulse" />
 
       <div className="relative z-10 text-center max-w-md animate-fade-up">
         <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6 sm:mb-8">
-          <div className="absolute inset-0 border-4 border-[#006494]/20 rounded-full" />
-          <div className="absolute inset-0 border-4 border-[#006494] rounded-full border-t-transparent animate-spin" />
+          <div className="absolute inset-0 border-4 border-[#A3E635]/20 rounded-full" />
+          <div className="absolute inset-0 border-4 border-[#A3E635] rounded-full border-t-transparent animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Radio className="w-8 h-8 text-[#006494] animate-pulse" />
+            <Radio className="w-8 h-8 text-[#65A30D] animate-pulse" />
           </div>
         </div>
 
@@ -691,13 +691,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         {role === 'host' && (
           <div className="mt-8 sm:mt-10 p-4 sm:p-6 bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-[24px] sm:rounded-[32px] border border-gray-200 dark:border-white/10 shadow-xl dark:shadow-2xl">
             <div className="flex items-center gap-3 mb-6">
-              <Link2 className="w-5 h-5 text-[#006494]" />
+              <Link2 className="w-5 h-5 text-[#65A30D]" />
               <span className="font-bold text-gray-950 dark:text-white text-sm">{t.shareLinkPrompt}</span>
             </div>
-            <div className="bg-gray-50 dark:bg-[#002e47]lack/50 rounded-[20px] p-4 mb-4 border border-gray-200 dark:border-white/5 cursor-pointer hover:border-[#006494]/50 transition-colors" onClick={handleCopyLink} title={t.copyRoomLinkBtn}>
-              <p className="text-xs font-mono text-[#006494] break-all text-left" dir="ltr">{getInviteLink()}</p>
+            <div className="bg-gray-50 dark:bg-[#064E3B]lack/50 rounded-[20px] p-4 mb-4 border border-gray-200 dark:border-white/5 cursor-pointer hover:border-[#A3E635]/50 transition-colors" onClick={handleCopyLink} title={t.copyRoomLinkBtn}>
+              <p className="text-xs font-mono text-[#65A30D] break-all text-left" dir="ltr">{getInviteLink()}</p>
             </div>
-            <button onClick={handleCopyLink} className={`w-full py-4 rounded-[20px] font-bold flex justify-center items-center gap-2 transition-all ${copied ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]' : 'bg-[#006494] hover:bg-[#004a70] text-white shadow-[0_0_20px_rgba(0,100,148,0.3)]'}`}>
+            <button onClick={handleCopyLink} className={`w-full py-4 rounded-[20px] font-bold flex justify-center items-center gap-2 transition-all ${copied ? 'bg-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]' : 'bg-[#A3E635] hover:bg-#65A30D text-white shadow-[0_0_20px_rgba(163,230,53,0.3)]'}`}>
               {copied ? t.linkCopied : t.copyRoomLinkBtn}
             </button>
           </div>
@@ -722,11 +722,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
         <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-2 bg-gray-100 dark:bg-[#002e47]lack/40 px-3 sm:px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/5">
-            <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-[#006494]'} animate-pulse`} />
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-[#064E3B]lack/40 px-3 sm:px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/5">
+            <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-[#A3E635]'} animate-pulse`} />
             <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{participants.length} {t.onlineCount}</span>
           </div>
-          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#006494]/10 hover:bg-[#006494]/20 border border-[#006494]/20 text-[#006494] text-sm font-bold rounded-2xl transition-all">
+          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#A3E635]/10 hover:bg-[#A3E635]/20 border border-[#A3E635]/20 text-[#65A30D] text-sm font-bold rounded-2xl transition-all">
             <UserPlus className="w-4 h-4" /> {t.inviteBtn}
           </button>
         </div>
@@ -738,7 +738,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         <div className="flex items-center gap-4 sm:mt-0">
           <div className="w-full sm:w-auto flex items-center justify-center gap-2 sm:gap-3 bg-gray-100 dark:bg-white/5 px-3 sm:px-5 py-2.5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-inner">
             <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white">{getLanguageName(myLanguage)}</span>
-            <ArrowRight className={`w-4 h-4 text-[#006494] ${isRtl ? 'scale-x-[-1]' : ''}`} />
+            <ArrowRight className={`w-4 h-4 text-[#65A30D] ${isRtl ? 'scale-x-[-1]' : ''}`} />
             <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white">{getLanguageName(partnerLanguage)}</span>
           </div>
         </div>
@@ -752,7 +752,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
         {/* Sleek Integrated SidePanel */}
         {sidePanelOpen && (
-          <div className={`fixed ${isRtl ? 'left-2' : 'right-2'} top-[10.75rem] bottom-[5.25rem] sm:bottom-[6rem] lg:static lg:inset-auto w-auto lg:w-[400px] lg:flex-none lg:h-full rounded-[22px] sm:rounded-[32px] overflow-hidden bg-white/95 dark:bg-[#112240]/95 lg:dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.55)] flex flex-col z-50 animate-fade-in shrink-0`}>
+          <div className={`fixed ${isRtl ? 'left-2' : 'right-2'} top-[10.75rem] bottom-[5.25rem] sm:bottom-[6rem] lg:static lg:inset-auto w-auto lg:w-[400px] lg:flex-none lg:h-full rounded-[22px] sm:rounded-[32px] overflow-hidden bg-white/95 dark:bg-[#065F46]/95 lg:dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.55)] flex flex-col z-50 animate-fade-in shrink-0`}>
             <SidePanel
               myId={participantId}
               myName={name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)}
