@@ -390,7 +390,7 @@ io.on('connection', (socket) => {
 
         if (needsTranslation) {
           try {
-            console.log(`[Server] Translating: ${srcLang} -> ${tgtLang}`);
+            console.log(`[Server] 🌐 Translating for ${p.name}: ${srcLang} -> ${tgtLang}`);
             finalTranslatedText = await translateText(
               transcriptEntry.originalText, 
               srcLang, 
@@ -398,34 +398,39 @@ io.on('connection', (socket) => {
               rConfig.geminiApiKey
             );
           } catch (err) {
-            console.warn(`[Server] Translation failed, using original:`, err.message);
+            console.warn(`[Server] ❌ Translation failed:`, err.message);
             finalTranslatedText = transcriptEntry.originalText;
           }
         }
 
-        // Generate Audio Base64
+        // Generate Audio Base64 (The "Correct Workflow" - Server Side TTS)
         let audioBase64 = '';
         try {
-          console.log(`[Server] Generating TTS for ${p.language}: "${finalTranslatedText.substring(0, 30)}..."`);
-          audioBase64 = await generateTTS(
-            finalTranslatedText, 
-            p.language,
-            rConfig.elevenLabsApiKey
-          );
+          const ttsKey = rConfig.elevenLabsApiKey || ELEVENLABS_API_KEY;
+          if (ttsKey && finalTranslatedText) {
+            console.log(`[Server] 🔊 Generating ElevenLabs TTS for ${p.name} (${p.language})`);
+            audioBase64 = await generateTTS(
+              finalTranslatedText, 
+              p.language,
+              ttsKey
+            );
+          }
         } catch (err) {
-          console.warn(`[Server] TTS generation failed:`, err.message);
+          console.warn(`[Server] ❌ TTS generation failed:`, err.message);
           audioBase64 = '';
         }
 
         // Send direct to specific participant's socket
-        io.to(p.socketId).emit('translated-audio', {
-          originalId: transcriptEntry.id,
-          speakerName: transcriptEntry.speakerName,
-          originalText: transcriptEntry.originalText,
-          translatedText: finalTranslatedText,
-          translatedLanguage: p.language,
-          audioBase64
-        });
+        if (finalTranslatedText || audioBase64) {
+          io.to(p.socketId).emit('translated-audio', {
+            originalId: transcriptEntry.id,
+            speakerName: transcriptEntry.speakerName,
+            originalText: transcriptEntry.originalText,
+            translatedText: finalTranslatedText,
+            translatedLanguage: p.language,
+            audioBase64
+          });
+        }
       })();
     }
   });

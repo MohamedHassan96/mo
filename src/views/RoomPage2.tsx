@@ -112,17 +112,9 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
     addTranscript(transcript);
-    if (
-      audioPlaybackEnabled &&
-      transcript.speakerId !== participantId &&
-      transcript.translatedText &&
-      transcript.translatedText !== transcript.originalText &&
-      lastSpokenTranscriptIdRef.current !== transcript.id
-    ) {
-      lastSpokenTranscriptIdRef.current = transcript.id;
-      speakText(transcript.translatedText, transcript.translatedLanguage);
-    }
-  }, [addTranscript, audioPlaybackEnabled, participantId, speakText]);
+    // TEXT-ONLY: We no longer call speakText here to avoid low-quality browser TTS.
+    // Professional audio is now handled via handleTranslatedAudio (Server-side).
+  }, [addTranscript]);
 
   const handleTranslatedAudio = useCallback((data: {
     originalId: string;
@@ -133,42 +125,44 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     audioBase64: string;
   }) => {
     if (!data.translatedText?.trim()) return;
-    lastSpokenTranscriptIdRef.current = data.originalId;
+    
+    // Update text transcript with final translation from server
     updateTranscript(data.originalId, {
       translatedText: data.translatedText,
       translatedLanguage: data.translatedLanguage,
     });
+
+    if (!data.audioBase64) return;
 
     setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus(data.speakerName) });
 
     const afterPlay = () => {
       if (shouldListenRef.current) {
         console.log('[TTS] Playback ended, resuming mic...');
-        startListeningRef.current?.(); // Resume STT
+        startListeningRef.current?.(); 
         setProcessingStatus({ stage: 'listening', message: t.listeningStatus });
       } else {
         setProcessingStatus({ stage: 'idle', message: '' });
       }
     };
 
-    if (data.audioBase64) {
-      const audio = ttsAudioRef.current;
-      if (audio) {
-        // AUTO-PAUSE MIC: Stop STT while TTS is playing to prevent feedback
-        if (isListeningRef.current) {
-          console.log('[TTS] Playback starting, pausing mic to prevent feedback...');
-          stopListeningRef.current?.();
-        }
-
-        audio.pause();
-        audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
-        audio.onended = afterPlay;
-        audio.onerror = () => afterPlay();
-        audio.play().catch(() => afterPlay());
-        return;
+    const audio = ttsAudioRef.current;
+    if (audio) {
+      // PRO WORKFLOW: Auto-pause mic to prevent the AI voice from being recorded again
+      if (isListeningRef.current) {
+        console.log('[TTS] AI speaking, auto-pausing local mic...');
+        stopListeningRef.current?.();
       }
+
+      audio.pause();
+      audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
+      audio.onended = afterPlay;
+      audio.onerror = () => afterPlay();
+      audio.play().catch(err => {
+        console.warn('[TTS] Playback blocked by browser policy:', err);
+        afterPlay();
+      });
     }
-    afterPlay();
   }, [updateTranscript, setProcessingStatus, t]);
 
   const {

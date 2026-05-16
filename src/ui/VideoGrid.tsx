@@ -3,7 +3,7 @@ import { useRoomStore } from '@/state/roomStore';
 import { useConfigStore } from '@/state/configStore';
 import { useMediaDevices } from '@/app-hooks/useMediaDevices';
 import { getTranslations } from '@/config/i18n';
-import { User, Mic, MicOff, Monitor, Maximize2, Settings, Sliders, Info } from 'lucide-react';
+import { User, Mic, MicOff, Monitor, Maximize2, Settings, Sliders, Info, MonitorUp } from 'lucide-react';
 
 interface VideoTileProps {
   stream: MediaStream | null;
@@ -24,10 +24,13 @@ function VideoTile({
   t
 }: VideoTileProps & { t: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { isCameraMirrored } = useRoomStore();
+  const { isCameraMirrored, processingStatus } = useRoomStore();
   const { capabilities, setZoom } = useMediaDevices();
   const [showStats, setShowStats] = useState(false);
   const [resolution, setResolution] = useState('');
+
+  // Local talking detection (approximate for UI feedback)
+  const isTalking = isLocal && (processingStatus.stage === 'listening' || processingStatus.stage === 'transcribing');
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = stream;
@@ -45,7 +48,7 @@ function VideoTile({
   const zoomCaps = (isLocal && capabilities) ? (capabilities as any).zoom : null;
 
   return (
-    <div className={`relative rounded-[28px] overflow-hidden bg-gray-50 dark:bg-bg-dark-900 border border-gray-200 dark:border-white/5 shadow-xl transition-all ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[220px] sm:min-h-[240px]`}>
+    <div className={`relative rounded-[24px] sm:rounded-[32px] overflow-hidden bg-gray-50 dark:bg-bg-dark-900 border-2 transition-all duration-300 ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[180px] sm:min-h-[240px] ${isTalking ? 'border-brand-neon shadow-lg shadow-brand-neon/20' : 'border-gray-200 dark:border-white/5 shadow-xl'}`}>
       {hasVideo ? (
         <>
           <video
@@ -53,12 +56,12 @@ function VideoTile({
             autoPlay
             playsInline
             muted={isLocal}
-            className={`w-full h-full object-contain bg-black ${isLocal && !isScreenShare && isCameraMirrored ? 'transform scale-x-[-1]' : ''}`}
+            className={`w-full h-full object-cover bg-black ${isLocal && !isScreenShare && isCameraMirrored ? 'transform scale-x-[-1]' : ''}`}
           />
 
           {/* Pro Overlays */}
           {isLocal && (
-            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex flex-col gap-2 z-10">
               <button 
                 onClick={() => setShowStats(!showStats)}
                 className="w-8 h-8 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
@@ -67,7 +70,7 @@ function VideoTile({
               </button>
 
               {showStats && (
-                <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 animate-in fade-in slide-in-from-left-2">
+                <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 animate-in fade-in slide-in-from-left-2 shadow-2xl">
                   <p className="text-[9px] font-black text-brand-neon uppercase tracking-tighter mb-1">Live Feed Stats</p>
                   <p className="text-[10px] text-white font-mono">{resolution}</p>
                 </div>
@@ -77,7 +80,7 @@ function VideoTile({
 
           {/* Zoom Slider for Local Camera */}
           {isLocal && !isScreenShare && zoomCaps && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3 bg-black/40 backdrop-blur-md p-3 rounded-2xl border border-white/10 z-10 group opacity-40 hover:opacity-100 transition-opacity">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 sm:right-4 flex flex-col items-center gap-3 bg-black/40 backdrop-blur-md p-3 rounded-2xl border border-white/10 z-10 group opacity-40 hover:opacity-100 transition-opacity">
               <Maximize2 className="w-3 h-3 text-white/50" />
               <input
                 type="range"
@@ -93,38 +96,48 @@ function VideoTile({
           )}
         </>
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-bg-dark-950">
-          <div className="w-20 h-20 rounded-[32px] bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shadow-2xl">
-            {isScreenShare ? (
-                <MonitorUp className="w-10 h-10 text-brand-neon" />
-            ) : (
-              <span className="text-3xl font-black text-brand-neon uppercase">
-                {name.charAt(0)}
-              </span>
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-bg-dark-950 gap-4">
+          <div className="relative">
+            <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-[28px] sm:rounded-[32px] bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shadow-2xl transition-transform ${isTalking ? 'scale-110' : ''}`}>
+              {isScreenShare ? (
+                  <MonitorUp className="w-8 h-8 sm:w-10 sm:h-10 text-brand-neon" />
+              ) : (
+                <span className="text-3xl sm:text-4xl font-black text-brand-neon uppercase">
+                  {name.charAt(0)}
+                </span>
+              )}
+            </div>
+            {isTalking && (
+              <div className="absolute -inset-2 rounded-[36px] border-2 border-brand-neon animate-ping opacity-20" />
             )}
           </div>
+          <p className="text-[10px] font-black text-brand-muted/40 dark:text-white/20 uppercase tracking-[0.2em]">{isCameraOff ? 'Camera Off' : 'Waiting...'}</p>
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 flex items-center gap-2 max-w-[calc(100%-2rem)]">
-        <div className="px-4 py-2 rounded-2xl bg-white/80 dark:bg-bg-dark-950/60 backdrop-blur-md border border-gray-200 dark:border-white/10 flex items-center gap-3">
-          <span className="truncate text-xs font-black text-brand-dark dark:text-white/95 uppercase tracking-tighter">
+      {/* Participant Badge */}
+      <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-2 max-w-[calc(100%-2rem)]">
+        <div className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center gap-3 transition-colors ${isTalking ? 'bg-brand-neon/20 border-brand-neon/30' : ''}`}>
+          <span className="truncate text-[10px] sm:text-xs font-black text-white uppercase tracking-tight">
             {name} {isLocal && t.videoGridYou}
           </span>
           <div className="w-px h-3 bg-gray-200 dark:bg-white/10" />
           {isMuted ? (
-            <MicOff className="w-3.5 h-3.5 text-red-500" />
+            <MicOff className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-500" />
           ) : (
-            <Mic className="w-3.5 h-3.5 text-brand-neon" />
+            <div className="relative">
+              <Mic className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isTalking ? 'text-brand-neon' : 'text-white/40'}`} />
+              {isTalking && <div className="absolute inset-0 bg-brand-neon rounded-full animate-ping opacity-40" />}
+            </div>
           )}
         </div>
       </div>
 
       {isScreenShare && (
         <>
-          <div className="absolute top-4 left-4 px-4 py-2 rounded-2xl bg-brand-neon text-brand-dark border-none flex items-center gap-2 shadow-lg shadow-brand-neon/30">
-            <MonitorUp className="w-4 h-4" />
-            <span className="text-xs font-black uppercase tracking-widest">{t.videoGridScreenShare}</span>
+          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl bg-brand-neon text-brand-dark border-none flex items-center gap-2 shadow-lg shadow-brand-neon/30">
+            <MonitorUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">{t.videoGridScreenShare}</span>
           </div>
           <button
             onClick={async () => {
@@ -136,10 +149,10 @@ function VideoTile({
                 }
               }
             }}
-            className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center bg-white/80 dark:bg-bg-dark-950/60 hover:bg-brand-neon dark:hover:bg-brand-neon backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/10 text-brand-muted dark:text-white/60 hover:text-brand-dark dark:hover:text-brand-dark transition-all"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-white/80 dark:bg-bg-dark-950/60 hover:bg-brand-neon dark:hover:bg-brand-neon backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/10 text-brand-muted dark:text-white/60 hover:text-brand-dark dark:hover:text-brand-dark transition-all"
             title={t.videoGridExpand}
           >
-            <Maximize2 className="w-5 h-5" />
+            <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </>
       )}
@@ -164,10 +177,12 @@ export default function VideoGrid() {
 
   const myParticipant = participants.find((p) => p.id === myId);
   const remoteParticipants = participants.filter((p) => p.id !== myId);
+  
   const remoteVideoTiles = remoteParticipants.map((participant) => ({
     participant,
     stream: participant.peerId ? remoteStreams[participant.peerId] ?? null : null,
   }));
+  
   const remoteScreenTiles = remoteParticipants
     .map((participant) => ({
       participant,
@@ -175,15 +190,19 @@ export default function VideoGrid() {
     }))
     .filter((tile): tile is { participant: typeof remoteParticipants[number]; stream: MediaStream } => Boolean(tile.stream));
 
-  const tileCount = 1 + remoteVideoTiles.length + remoteScreenTiles.length + (localScreenStream ? 1 : 0);
-  const gridClass = tileCount <= 1
-    ? 'grid-cols-1'
-    : tileCount === 2
-      ? 'grid-cols-1 lg:grid-cols-2'
-      : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3';
+  const totalTiles = 1 + remoteVideoTiles.length + remoteScreenTiles.length + (localScreenStream ? 1 : 0);
+  
+  // Mobile optimized grid classes
+  const gridClass = totalTiles <= 1
+    ? 'grid-cols-1 max-w-xl mx-auto'
+    : totalTiles === 2
+      ? 'grid-cols-1 md:grid-cols-2'
+      : totalTiles <= 4
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
   return (
-    <div className={`h-full min-h-0 grid gap-4 ${gridClass} auto-rows-fr overflow-y-auto p-1`}>
+    <div className={`h-full min-h-0 grid gap-3 sm:gap-4 ${gridClass} auto-rows-fr overflow-y-auto p-2 sm:p-4 content-start`}>
       {localScreenStream && (
         <VideoTile
           stream={localScreenStream}
@@ -215,24 +234,23 @@ export default function VideoGrid() {
         t={t}
       />
 
-      {remoteVideoTiles.length > 0 ? (
-        remoteVideoTiles.map(({ participant, stream }) => (
-          <VideoTile
-            key={participant.id}
-            stream={stream}
-            name={participant.name}
-            isMuted={participant.isMicOn === false}
-            isCameraOff={participant.isCameraOn === false}
-            t={t}
-          />
-        ))
-      ) : (
-        <div className="rounded-[32px] bg-gray-50 dark:bg-bg-dark-900/50 border border-gray-100 dark:border-white/5 flex flex-col items-center justify-center p-8 min-h-[220px]">
+      {remoteVideoTiles.map(({ participant, stream }) => (
+        <VideoTile
+          key={participant.id}
+          stream={stream}
+          name={participant.name}
+          isMuted={participant.isMicOn === false}
+          isCameraOff={participant.isCameraOn === false}
+          t={t}
+        />
+      ))}
+
+      {totalTiles === 1 && participants.length === 1 && (
+        <div className="rounded-[32px] bg-gray-50/50 dark:bg-bg-dark-900/30 border border-gray-100 dark:border-white/5 flex flex-col items-center justify-center p-8 min-h-[200px] animate-pulse">
           <div className="w-16 h-16 rounded-full bg-brand-neon/5 flex items-center justify-center mb-4">
             <User className="w-8 h-8 text-brand-muted/20 dark:text-brand-neon/20" />
           </div>
           <p className="text-sm text-center font-bold text-emerald-900/40 dark:text-white/30">{t.videoGridWaiting}</p>
-          <p className="text-xs mt-2 text-center text-emerald-900/20 dark:text-white/10">{t.videoGridSharePrompt}</p>
         </div>
       )}
     </div>
