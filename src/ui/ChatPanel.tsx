@@ -110,16 +110,15 @@ export default function ChatPanel({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900 dark:text-white">{t.chatTitle}</h3>
+    <div className="flex flex-col h-full bg-white dark:bg-bg-dark-900">
+      <div className="px-4 py-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-brand-dark dark:text-white/95">{t.chatTitle}</h3>
         <button
           onClick={() => setAutoTranslate(!autoTranslate)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${
             autoTranslate
-              ? 'bg-lime-100 dark:bg-lime-600/20 text-lime-800 dark:text-lime-300'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+              ? 'bg-brand-neon/20 text-brand-muted dark:text-brand-neon'
+              : 'bg-gray-100 dark:bg-white/5 text-emerald-900/40 dark:text-white/30'
           }`}
         >
           <Languages className="w-3.5 h-3.5" />
@@ -127,16 +126,11 @@ export default function ChatPanel({
         </button>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-5">
         {uniqueMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <p className="text-sm text-center">
-              {t.chatEmpty}
-            </p>
-            <p className="text-xs text-center mt-1 opacity-75">
-              {t.chatStart}
-            </p>
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-sm text-center font-bold text-emerald-900/40 dark:text-white/30">{t.chatEmpty}</p>
+            <p className="text-xs text-center mt-1 text-emerald-900/20 dark:text-white/10">{t.chatStart}</p>
           </div>
         ) : (
           uniqueMessages.map((msg) => {
@@ -144,55 +138,31 @@ export default function ChatPanel({
             const hasTranslation = msg.translatedText && msg.translatedText !== msg.text;
             
             return (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-              >
-                {/* اسم المرسل */}
-                <span className={`text-xs mb-1 font-medium ${
-                  msg.senderRole === 'host'
-                    ? 'text-lime-700 dark:text-lime-400'
-                    : 'text-green-600 dark:text-green-400'
-                }`}>
+              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                <span className={`text-[11px] mb-1.5 font-black ${msg.senderRole === 'host' ? 'text-brand-muted dark:text-brand-neon' : 'text-emerald-700/60 dark:text-white/50'}`}>
                   {msg.senderName}
                 </span>
 
-                {/* فقاعة الرسالة */}
-                <div
-                  className={`max-w-[85%] rounded-2xl overflow-hidden ${
-                    isMe
-                      ? 'bg-lime-600 text-white rounded-br-md'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
-                  }`}
-                >
-                  {/* النص الأصلي */}
-                  <div className="px-4 py-2.5">
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="auto">
+                <div className={`max-w-[85%] rounded-2xl overflow-hidden shadow-sm ${isMe ? 'bg-brand-neon rounded-tr-none' : 'bg-gray-100 dark:bg-white/5 rounded-tl-none'}`}>
+                  <div className="px-4 py-3">
+                    <p className={`text-sm whitespace-pre-wrap leading-relaxed font-medium ${isMe ? 'text-brand-dark' : 'text-emerald-950 dark:text-white/95'}`} dir="auto">
                       {msg.text}
                     </p>
                   </div>
 
-                  {/* الترجمة (إن وجدت) */}
                   {hasTranslation && (
-                    <div className={`px-4 py-2.5 border-t ${
-                      isMe 
-                        ? 'bg-lime-700/50 border-lime-400/30' 
-                        : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-700'
-                    }`}>
-                      <p className={`text-xs mb-1 ${isMe ? 'text-lime-200' : 'text-gray-400'}`}>
+                    <div className={`px-4 py-3 border-t ${isMe ? 'bg-black/5 border-black/5' : 'bg-black/5 dark:bg-white/5 border-white/5'}`}>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-1.5 ${isMe ? 'text-brand-dark/40' : 'text-brand-muted/40 dark:text-white/30'}`}>
                         {t.chatTranslationLabel}
                       </p>
-                      <p className={`text-sm whitespace-pre-wrap leading-relaxed ${
-                        isMe ? 'text-lime-100' : 'text-gray-600 dark:text-gray-300'
-                      }`} dir="auto">
+                      <p className={`text-sm whitespace-pre-wrap leading-relaxed font-semibold ${isMe ? 'text-brand-dark/90' : 'text-brand-muted dark:text-brand-neon'}`} dir="auto">
                         {msg.translatedText}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* الوقت */}
-                <span className="text-[10px] text-gray-400 mt-1 px-1">
+                <span className="text-[9px] font-bold text-emerald-900/20 dark:text-white/20 mt-1.5 px-1">
                   {formatTime(msg.timestamp)}
                 </span>
               </div>
@@ -201,15 +171,14 @@ export default function ChatPanel({
         )}
 
         {isTranslating && (
-          <div className="flex items-center justify-center gap-2 py-2">
-            <Loader2 className="w-4 h-4 text-lime-600 animate-spin" />
-            <span className="text-xs text-gray-400">{t.chatTranslating}</span>
+          <div className="flex items-center justify-center gap-2 py-3 bg-brand-neon/5 rounded-2xl border border-brand-neon/10 animate-pulse">
+            <Loader2 className="w-4 h-4 text-brand-neon animate-spin" />
+            <span className="text-[10px] font-bold text-brand-muted dark:text-brand-neon uppercase tracking-widest">{t.chatTranslating}</span>
           </div>
         )}
       </div>
 
-      {/* Input */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-bg-dark-900/50">
         <div className="flex gap-2">
           <input
             type="text"
@@ -219,22 +188,20 @@ export default function ChatPanel({
             placeholder={t.chatInputPlaceholder}
             disabled={isTranslating}
             dir="auto"
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 
-                       bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm
-                       focus:ring-2 focus:ring-lime-600 focus:border-transparent
-                       placeholder:text-gray-400 disabled:opacity-50"
+            className="flex-1 px-5 py-3 rounded-2xl border border-gray-200 dark:border-white/10 
+                       bg-white dark:bg-bg-dark-950 text-brand-dark dark:text-white/95 text-sm
+                       focus:ring-1 focus:ring-brand-neon focus:border-brand-neon
+                       placeholder-emerald-900/20 dark:placeholder-white/10 disabled:opacity-50 transition-all"
           />
           <button
             onClick={handleSend}
             disabled={!message.trim() || isTranslating}
-            className="px-4 py-2.5 bg-lime-600 hover:bg-lime-700 disabled:bg-gray-300 
-                       dark:disabled:bg-gray-700 text-white rounded-xl transition-colors
-                       disabled:cursor-not-allowed"
+            className="w-12 h-12 flex items-center justify-center bg-brand-neon text-brand-dark rounded-2xl shadow-lg shadow-brand-neon/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
           >
             {isTranslating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             )}
           </button>
         </div>

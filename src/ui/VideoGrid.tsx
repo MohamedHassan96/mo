@@ -31,48 +31,48 @@ function VideoTile({
   const hasVideo = stream && stream.getVideoTracks().length > 0 && !isCameraOff;
 
   return (
-    <div className={`relative rounded-[20px] sm:rounded-[24px] overflow-hidden bg-gray-100 dark:bg-[#065F46] border border-gray-200 dark:border-[#1E1E1E] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[220px] sm:min-h-[240px]`}>
+    <div className={`relative rounded-[28px] overflow-hidden bg-gray-50 dark:bg-bg-dark-900 border border-gray-200 dark:border-white/5 shadow-xl transition-all ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[220px] sm:min-h-[240px]`}>
       {hasVideo ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted={isLocal}
-          className={`w-full h-full object-contain ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
+          className={`w-full h-full object-contain bg-black ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-[#022C22]">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#1E1E1E] shadow-lg dark:shadow-[0_0_30px_rgba(163,230,53,0.2)] flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-bg-dark-950">
+          <div className="w-20 h-20 rounded-[32px] bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shadow-2xl">
             {isScreenShare ? (
-                <MonitorUp className="w-8 h-8 sm:w-10 sm:h-10 text-[#65A30D]" />
+                <MonitorUp className="w-10 h-10 text-brand-neon" />
             ) : (
-              <span className="text-2xl sm:text-3xl font-bold text-[#65A30D]">
-                {name.charAt(0).toUpperCase()}
+              <span className="text-3xl font-black text-brand-neon uppercase">
+                {name.charAt(0)}
               </span>
             )}
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-3 max-w-[calc(100%-1.5rem)] sm:max-w-[calc(100%-2rem)]">
-        <div className="min-w-0 px-3 sm:px-4 py-2 rounded-full bg-white/80 dark:bg-[#022C22]/80 backdrop-blur-md border border-gray-200 dark:border-[#1E1E1E] flex items-center gap-2 sm:gap-3">
-          <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white tracking-wide">
+      <div className="absolute bottom-4 left-4 flex items-center gap-2 max-w-[calc(100%-2rem)]">
+        <div className="px-4 py-2 rounded-2xl bg-white/80 dark:bg-bg-dark-950/60 backdrop-blur-md border border-gray-200 dark:border-white/10 flex items-center gap-3">
+          <span className="truncate text-xs font-black text-brand-dark dark:text-white/95 uppercase tracking-tighter">
             {name} {isLocal && t.videoGridYou}
           </span>
-          <div className="w-px h-4 bg-gray-300 dark:bg-[#1E1E1E]" />
+          <div className="w-px h-3 bg-gray-200 dark:bg-white/10" />
           {isMuted ? (
-            <MicOff className="w-4 h-4 text-red-500" />
+            <MicOff className="w-3.5 h-3.5 text-red-500" />
           ) : (
-            <Mic className="w-4 h-4 text-[#65A30D]" />
+            <Mic className="w-3.5 h-3.5 text-brand-neon" />
           )}
         </div>
       </div>
 
       {isScreenShare && (
         <>
-          <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-lime-50 dark:bg-[#A3E635]/20 backdrop-blur-md border border-emerald-200 dark:border-[#A3E635]/50 flex items-center gap-2">
-            <MonitorUp className="w-4 h-4 text-[#65A30D]" />
-            <span className="text-sm font-bold text-[#65A30D]">{t.videoGridScreenShare}</span>
+          <div className="absolute top-4 left-4 px-4 py-2 rounded-2xl bg-brand-neon text-brand-dark border-none flex items-center gap-2 shadow-lg shadow-brand-neon/30">
+            <MonitorUp className="w-4 h-4" />
+            <span className="text-xs font-black uppercase tracking-widest">{t.videoGridScreenShare}</span>
           </div>
           <button
             onClick={async () => {
@@ -84,7 +84,7 @@ function VideoTile({
                 }
               }
             }}
-            className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center bg-white/80 dark:bg-[#022C22]/80 hover:bg-gray-100 dark:hover:bg-[#121212] backdrop-blur-md rounded-full border border-gray-200 dark:border-[#1E1E1E] hover:border-[#A3E635]/50 dark:hover:border-[#A3E635]/50 text-gray-600 dark:text-[#A3A3A3] hover:text-[#65A30D] dark:hover:text-[#65A30D] transition-all hover:scale-105 shadow-lg dark:shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+            className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center bg-white/80 dark:bg-bg-dark-950/60 hover:bg-brand-neon dark:hover:bg-brand-neon backdrop-blur-md rounded-2xl border border-gray-200 dark:border-white/10 text-brand-muted dark:text-white/60 hover:text-brand-dark dark:hover:text-brand-dark transition-all"
             title={t.videoGridExpand}
           >
             <Maximize2 className="w-5 h-5" />
@@ -131,7 +131,7 @@ export default function VideoGrid() {
       : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3';
 
   return (
-    <div className={`h-full min-h-0 grid gap-2 sm:gap-4 ${gridClass} auto-rows-fr overflow-y-auto`}>
+    <div className={`h-full min-h-0 grid gap-4 ${gridClass} auto-rows-fr overflow-y-auto p-1`}>
       {localScreenStream && (
         <VideoTile
           stream={localScreenStream}
@@ -175,12 +175,12 @@ export default function VideoGrid() {
           />
         ))
       ) : (
-        <div className="rounded-[20px] sm:rounded-2xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center p-6 sm:p-8 min-h-[220px]">
-          <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-4">
-            <User className="w-8 h-8 text-gray-500" />
+        <div className="rounded-[32px] bg-gray-50 dark:bg-bg-dark-900/50 border border-gray-100 dark:border-white/5 flex flex-col items-center justify-center p-8 min-h-[220px]">
+          <div className="w-16 h-16 rounded-full bg-brand-neon/5 flex items-center justify-center mb-4">
+            <User className="w-8 h-8 text-brand-muted/20 dark:text-brand-neon/20" />
           </div>
-          <p className="text-gray-400 text-center">{t.videoGridWaiting}</p>
-          <p className="text-gray-500 text-sm mt-2 text-center">{t.videoGridSharePrompt}</p>
+          <p className="text-sm text-center font-bold text-emerald-900/40 dark:text-white/30">{t.videoGridWaiting}</p>
+          <p className="text-xs mt-2 text-center text-emerald-900/20 dark:text-white/10">{t.videoGridSharePrompt}</p>
         </div>
       )}
     </div>

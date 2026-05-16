@@ -45,9 +45,24 @@
 
 @theme {
   --font-sans: "IBM Plex Sans Arabic", sans-serif;
+  
+  --color-brand-neon: #A3E635;
+  --color-brand-dark: #3F6212;
+  --color-brand-muted: #65A30D;
+  
+  --color-bg-dark-950: #020617;
+  --color-bg-dark-900: #0F172A;
+  --color-bg-dark-800: #1E293B;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Global smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 /* Custom animations */
 @keyframes spin-slow {

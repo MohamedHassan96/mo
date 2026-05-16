@@ -54,9 +54,8 @@ export default function SidePanel({
   };
 
   return (
-    <div className="h-full w-full bg-gray-50 dark:bg-[#065F46] border-l border-gray-200 dark:border-[#1E1E1E] flex flex-col">
-      {/* Tabs */}
-      <div className="flex items-center border-b border-gray-200 dark:border-[#1E1E1E] bg-white dark:bg-[#065F46]">
+    <div className="h-full w-full bg-white dark:bg-bg-dark-900 border-l border-gray-200 dark:border-white/10 flex flex-col">
+      <div className="flex items-center border-b border-gray-200 dark:border-white/5 bg-white dark:bg-bg-dark-900">
         {TABS.map((tab) => {
           const count = getCount(tab.id);
           const isActive = sidePanelTab === tab.id;
@@ -64,35 +63,37 @@ export default function SidePanel({
             <button
               key={tab.id}
               onClick={() => setSidePanelTab(tab.id)}
-              className={`min-w-0 flex-1 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-3 text-xs sm:text-sm font-bold transition-colors ${
+              className={`min-w-0 flex-1 flex items-center justify-center gap-1.5 px-2 sm:px-3 py-4 text-xs sm:text-sm font-bold transition-all relative ${
                 isActive
-                  ? 'text-[#65A30D] border-b-2 border-[#A3E635]'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-[#A3A3A3] dark:hover:text-white'
+                  ? 'text-brand-muted dark:text-brand-neon'
+                  : 'text-emerald-900/60 dark:text-white/40 hover:text-brand-dark dark:hover:text-white/70'
               }`}
             >
               <tab.icon className="w-4 h-4" />
               <span className="truncate">{t[tab.labelKey]}</span>
               {count > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                   isActive
-                    ? 'bg-[#A3E635]/10 text-[#65A30D]'
-                    : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-500 dark:text-[#A3A3A3]'
+                    ? 'bg-brand-neon/20 text-brand-muted dark:text-brand-neon'
+                    : 'bg-gray-100 dark:bg-white/5 text-emerald-900/40 dark:text-white/30'
                 }`}>
                   {count}
                 </span>
+              )}
+              {isActive && (
+                <div className="absolute bottom-0 inset-x-0 h-0.5 bg-brand-neon shadow-[0_0_10px_rgba(163,230,53,0.5)]" />
               )}
             </button>
           );
         })}
         <button
           onClick={() => setSidePanelOpen(false)}
-          className="p-3 text-gray-400 hover:text-gray-600 dark:text-[#A3A3A3] dark:hover:text-white transition-colors"
+          className="p-4 text-emerald-800/40 dark:text-white/30 hover:text-brand-dark dark:hover:text-white/70 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-hidden">
         {sidePanelTab === 'chat' && (
           <ChatPanel
