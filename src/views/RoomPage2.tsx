@@ -130,17 +130,28 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       translatedText: data.translatedText,
       translatedLanguage: data.translatedLanguage,
     });
+
     setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus(data.speakerName) });
+
     const afterPlay = () => {
       if (shouldListenRef.current) {
+        console.log('[TTS] Playback ended, resuming mic...');
+        startListeningRef.current?.(); // Resume STT
         setProcessingStatus({ stage: 'listening', message: t.listeningStatus });
       } else {
         setProcessingStatus({ stage: 'idle', message: '' });
       }
     };
+
     if (data.audioBase64) {
       const audio = ttsAudioRef.current;
       if (audio) {
+        // AUTO-PAUSE MIC: Stop STT while TTS is playing to prevent feedback
+        if (isListeningRef.current) {
+          console.log('[TTS] Playback starting, pausing mic to prevent feedback...');
+          stopListeningRef.current?.();
+        }
+
         audio.pause();
         audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
         audio.onended = afterPlay;
@@ -283,11 +294,22 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: enableCamera ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
       });
     } catch {
-      try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return null; }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          }
+        });
+      } catch { return null; }
     }
     if (stream && !enableMic) stream.getAudioTracks().forEach(t => { t.enabled = false; });
     localStreamRef.current = stream;
