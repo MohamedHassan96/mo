@@ -20,7 +20,8 @@ function loadLocalEnv() {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
-    if (!process.env[key]) process.env[key] = value;
+    // Always overwrite to ensure new keys in .env take effect immediately
+    process.env[key] = value;
   }
 }
 
@@ -28,6 +29,7 @@ loadLocalEnv();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 
 const app = express();
 app.use(cors());
@@ -142,7 +144,8 @@ async function generateTTS(text, language) {
   if (!ELEVENLABS_API_KEY) {
     throw new Error('ELEVENLABS_API_KEY is not configured');
   }
-  const voiceId = process.env.ELEVENLABS_VOICE_ID || (language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL');
+  const voiceId = ELEVENLABS_VOICE_ID || (language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL');
+  console.log(`[TTS] Generating for: "${text.slice(0, 20)}..." | Lang: ${language} | Voice: ${voiceId}`);
   
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -258,7 +261,9 @@ io.on('connection', (socket) => {
               transcriptEntry.originalLanguage, 
               p.language
             );
-          } catch {
+            console.log(`[Socket] Translated for ${p.name}: ${transcriptEntry.originalText.slice(0,15)} -> ${finalTranslatedText.slice(0,15)}`);
+          } catch (err) {
+            console.error(`[Socket] Translation failed for ${p.name}:`, err.message);
             return;
           }
         }
