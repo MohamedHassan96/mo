@@ -13,6 +13,9 @@ interface UseMediaDevicesReturn {
   stopScreenShare: () => void;
   toggleScreenShare: () => Promise<void>;
   
+  // Devices
+  getDevices: () => Promise<MediaDeviceInfo[]>;
+
   // State
   cameraError: string | null;
   screenShareError: string | null;
@@ -23,6 +26,8 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     isCameraOn,
     isScreenSharing,
     localStream,
+    selectedVideoDevice,
+    cameraResolution,
     setCameraOn,
     setScreenSharing,
     setLocalStream,
@@ -35,20 +40,47 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
 
+  // ─── Devices ──────────────────────────────────────────────────
+
+  const getDevices = useCallback(async (): Promise<MediaDeviceInfo[]> => {
+    try {
+      // First, we need to request permission to get labels
+      if (!localStream) {
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        tempStream.getTracks().forEach(track => track.stop());
+      }
+      return await navigator.mediaDevices.enumerateDevices();
+    } catch (err) {
+      console.error('Error enumerating devices:', err);
+      return [];
+    }
+  }, [localStream]);
+
   // ─── Camera ───────────────────────────────────────────────────
+
+  const getResolutionConstraints = (res: '360p' | '720p' | '1080p') => {
+    switch (res) {
+      case '360p': return { width: { ideal: 640 }, height: { ideal: 360 } };
+      case '1080p': return { width: { ideal: 1920 }, height: { ideal: 1080 } };
+      case '720p':
+      default: return { width: { ideal: 1280 }, height: { ideal: 720 } };
+    }
+  };
 
   const startCamera = useCallback(async (): Promise<MediaStream | null> => {
     try {
       setCameraError(null);
       
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const constraints: MediaStreamConstraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user',
+          ...getResolutionConstraints(cameraResolution),
+          deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
+          facingMode: selectedVideoDevice ? undefined : 'user',
         },
         audio: false, 
-      });
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
       cameraStreamRef.current = stream;
       const videoTrack = stream.getVideoTracks()[0];
@@ -60,7 +92,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
           localStream.removeTrack(track);
         });
 
-        // Create a NEW MediaStream instance to trigger React state update in VideoGrid
+        // Create a NEW MediaStream instance to trigger React state update
         const newStream = new MediaStream([
           ...localStream.getAudioTracks(),
           videoTrack
@@ -85,7 +117,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       }
       return null;
     }
-  }, [localStream, setCameraOn, setLocalStream]);
+  }, [cameraResolution, localStream, selectedVideoDevice, setCameraOn, setLocalStream]);
 
   const stopCamera = useCallback(() => {
     if (cameraStreamRef.current) {
@@ -193,6 +225,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     startScreenShare,
     stopScreenShare,
     toggleScreenShare,
+    getDevices,
     cameraError,
     screenShareError,
   };

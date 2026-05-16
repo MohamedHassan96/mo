@@ -15,6 +15,13 @@ interface RoomState {
   sidePanelTab: SidePanelTab;
   sidePanelOpen: boolean;
 
+  // Device Selection & Quality
+  selectedVideoDevice: string;
+  selectedAudioInputDevice: string;
+  selectedAudioOutputDevice: string;
+  cameraResolution: '360p' | '720p' | '1080p';
+  isCameraMirrored: boolean;
+
   // Streams
   localStream: MediaStream | null;
   localScreenStream: MediaStream | null;
@@ -39,6 +46,13 @@ interface RoomState {
   setCameraOn: (on: boolean) => void;
   setScreenSharing: (on: boolean) => void;
   setAudioPlaybackEnabled: (on: boolean) => void;
+  
+  // Device selection & Quality actions
+  setSelectedVideoDevice: (deviceId: string) => void;
+  setSelectedAudioInputDevice: (deviceId: string) => void;
+  setSelectedAudioOutputDevice: (deviceId: string) => void;
+  setCameraResolution: (res: '360p' | '720p' | '1080p') => void;
+  setCameraMirrored: (mirrored: boolean) => void;
 
   // Streams
   setLocalStream: (stream: MediaStream | null) => void;
@@ -141,6 +155,12 @@ export const useRoomStore = create<RoomState>()((set) => ({
   setCameraOn: (on) => set({ isCameraOn: on }),
   setScreenSharing: (on) => set({ isScreenSharing: on }),
   setAudioPlaybackEnabled: (on) => set({ audioPlaybackEnabled: on }),
+
+  setSelectedVideoDevice: (deviceId) => set({ selectedVideoDevice: deviceId }),
+  setSelectedAudioInputDevice: (deviceId) => set({ selectedAudioInputDevice: deviceId }),
+  setSelectedAudioOutputDevice: (deviceId) => set({ selectedAudioOutputDevice: deviceId }),
+  setCameraResolution: (res) => set({ cameraResolution: res }),
+  setCameraMirrored: (mirrored) => set({ isCameraMirrored: mirrored }),
 
   setLocalStream: (stream) => set({ localStream: stream }),
   setLocalScreenStream: (stream) => set({ localScreenStream: stream }),

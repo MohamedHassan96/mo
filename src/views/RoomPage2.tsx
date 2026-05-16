@@ -407,23 +407,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     updateParticipant(participantId, updates);
     socketUpdateParticipant(updates);
     peerSendData({ type: 'participant-update', payload: { id: participantId, ...updates } as Participant });
+    
     if (nextOn) {
-      const stream = await startCamera();
-      if (stream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        setPeerLocalStream(stream); // Update Peer connection ref
-        replaceVideoTrack(videoTrack); // Update local store/UI
-        peerReplaceVideoTrack(videoTrack); // Send to all current peers
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      }
+      await startCamera();
     } else {
       stopCamera();
-      // When camera is off, we still have audio in the stream
-      if (localStreamRef.current) setPeerLocalStream(localStreamRef.current); 
-      replaceVideoTrack(null); // Clear local UI
-      peerReplaceVideoTrack(null); // Notify current peers
     }
-  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera, replaceVideoTrack, peerReplaceVideoTrack, setPeerLocalStream]);
+  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera]);
 
   const handleEndCall = useCallback(() => {
     stopListening();
@@ -606,6 +596,23 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
                 addChatMessage(msg);
                 socketSendChat(msg);
                 peerSendData({ type: 'chat', payload: msg });
+              }}
+            />
+          </div>
+        )}
+      </div>
+      <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} onStartScreenShare={peerStartScreenShare} onStopScreenShare={peerStopScreenShare} />
+    </div>
+  );
+
+  return (
+    <>
+      <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
+      {phase === 'setup' ? renderSetup() : phase === 'connecting' ? renderConnecting() : renderActive()}
+    </>
+  );
+}
+               peerSendData({ type: 'chat', payload: msg });
               }}
             />
           </div>

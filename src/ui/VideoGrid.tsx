@@ -23,6 +23,7 @@ function VideoTile({
   t
 }: VideoTileProps & { t: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { isCameraMirrored } = useRoomStore();
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = stream;
@@ -38,7 +39,7 @@ function VideoTile({
           autoPlay
           playsInline
           muted={isLocal}
-          className={`w-full h-full object-contain bg-black ${isLocal && !isScreenShare ? 'transform scale-x-[-1]' : ''}`}
+          className={`w-full h-full object-contain bg-black ${isLocal && !isScreenShare && isCameraMirrored ? 'transform scale-x-[-1]' : ''}`}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-bg-dark-950">

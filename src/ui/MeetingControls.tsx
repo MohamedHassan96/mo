@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRoomStore } from '@/state/roomStore';
 import { useConfigStore } from '@/state/configStore';
+import { useMediaDevices } from '@/app-hooks/useMediaDevices';
 import {
   Mic,
   MicOff,
@@ -16,6 +17,8 @@ import {
   Copy,
   Check,
   Settings,
+  ChevronUp,
+  Camera,
 } from 'lucide-react';
 import { playScreenShareSound } from '@/utils/sounds';
 
@@ -42,6 +45,8 @@ export default function MeetingControls({
     isScreenSharing,
     audioPlaybackEnabled,
     sidePanelOpen,
+    selectedVideoDevice,
+    setSelectedVideoDevice,
     setScreenSharing,
     setAudioPlaybackEnabled,
     setLocalScreenStream,
@@ -49,9 +54,20 @@ export default function MeetingControls({
   } = useRoomStore();
 
   const { setShowSettings } = useConfigStore();
+  const { getDevices, startCamera } = useMediaDevices();
 
   const [copied, setCopied] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showCameraMenu, setShowCameraMenu] = useState(false);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+
+  useEffect(() => {
+    if (showCameraMenu) {
+      getDevices().then(devs => {
+        setVideoDevices(devs.filter(d => d.kind === 'videoinput'));
+      });
+    }
+  }, [showCameraMenu, getDevices]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(roomId.toUpperCase()).then(() => {
@@ -88,6 +104,16 @@ export default function MeetingControls({
     }
   }, [isScreenSharing, onStartScreenShare, onStopScreenShare, setLocalScreenStream, setScreenSharing]);
 
+  const handleSwitchCamera = async (deviceId: string) => {
+    setSelectedVideoDevice(deviceId);
+    setShowCameraMenu(false);
+    if (isCameraOn) {
+      setTimeout(() => startCamera(), 100);
+    } else {
+      onToggleCamera();
+    }
+  };
+
   return (
     <div className="bg-white/80 dark:bg-bg-dark-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
@@ -117,15 +143,54 @@ export default function MeetingControls({
             {isMicOn ? <Mic className="w-5 h-5 sm:w-6 sm:h-6" /> : <MicOff className="w-5 h-5 sm:w-6 sm:h-6" />}
           </button>
 
-          <button
-            onClick={onToggleCamera}
-            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${isCameraOn
-                ? 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark dark:text-white/90'
-                : 'bg-red-500 hover:bg-red-600 text-white border-none shadow-lg shadow-red-500/20'
-              }`}
-          >
-            {isCameraOn ? <Video className="w-5 h-5 sm:w-6 sm:h-6" /> : <VideoOff className="w-5 h-5 sm:w-6 sm:h-6" />}
-          </button>
+          <div className="relative flex items-center">
+            <button
+              onClick={onToggleCamera}
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${isCameraOn
+                  ? 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark dark:text-white/90'
+                  : 'bg-red-500 hover:bg-red-600 text-white border-none shadow-lg shadow-red-500/20'
+                }`}
+            >
+              {isCameraOn ? <Video className="w-5 h-5 sm:w-6 sm:h-6" /> : <VideoOff className="w-5 h-5 sm:w-6 sm:h-6" />}
+            </button>
+            <button 
+              onClick={() => setShowCameraMenu(!showCameraMenu)}
+              className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white dark:bg-bg-dark-800 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:border-brand-neon transition-colors shadow-sm"
+            >
+              <ChevronUp className={`w-3 h-3 text-brand-neon transition-transform ${showCameraMenu ? '' : 'rotate-180'}`} />
+            </button>
+
+            {showCameraMenu && (
+              <div className="absolute bottom-full left-0 mb-4 w-64 bg-white dark:bg-bg-dark-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5">
+                  <p className="text-[10px] font-black text-brand-neon uppercase tracking-widest flex items-center gap-2">
+                    <Camera className="w-3 h-3" />
+                    تبديل الكاميرا
+                  </p>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {videoDevices.length > 0 ? (
+                    videoDevices.map(device => (
+                      <button
+                        key={device.deviceId}
+                        onClick={() => handleSwitchCamera(device.deviceId)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold transition-colors hover:bg-gray-50 dark:hover:bg-white/5 ${
+                          selectedVideoDevice === device.deviceId ? 'text-brand-neon bg-brand-neon/5' : 'text-gray-600 dark:text-white/70'
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${selectedVideoDevice === device.deviceId ? 'bg-brand-neon animate-pulse' : 'bg-transparent'}`} />
+                        <span className="truncate text-left">{device.label || `Camera ${device.deviceId.slice(0, 5)}`}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-8 text-center">
+                      <p className="text-[10px] text-gray-400">جاري البحث عن كاميرات...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={handleToggleScreenShare}
