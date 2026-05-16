@@ -113,6 +113,7 @@ function setupSocketIO(httpServer: any) {
   console.log('[Socket] Socket.IO server initialized');
 
   const io = new Server(httpServer, {
+    path: '/socket-signal',
     cors: { origin: '*' }
   });
 
@@ -121,8 +122,9 @@ function setupSocketIO(httpServer: any) {
 
     // ── Join Room ──────────────────────────────────────────────────────────
     socket.on('join-room', (payload: any, callback: any) => {
-      const { roomId, participant } = payload;
+      let { roomId, participant } = payload;
       if (!roomId || !participant) return;
+      roomId = roomId.trim().toLowerCase();
 
       socket.rooms.forEach((r: string) => { if (r !== socket.id) socket.leave(r); });
       socket.join(roomId);

@@ -178,6 +178,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [updateTranscript, setProcessingStatus]);
 
   const {
+    isReady: isSocketReady,
     sendChatMessage: socketSendChat,
     sendTranscript: socketSendTranscript,
     disconnect: socketDisconnect
@@ -211,24 +212,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     }
   };
 
-  const ttsRest = async (text: string, language: string) => {
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language })
-      });
-      const data = await res.json();
-      return data.audioBase64;
-    } catch (err) {
-      console.error('REST TTS fallback error:', err);
-      return '';
-    }
-  };
-
-
-  const hostParticipant = participants.find(p => p.role === 'host');
-
   const {
     isReady: isPeerReady,
     error: peerError,
@@ -245,7 +228,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onRemoteStream: handleRemoteStream,
     onChatMessage: handleChatMessage,
     onParticipantUpdate: (p) => updateParticipant(p.id, p),
-    onParticipantLeft: (pid) => { /* Logic to remove peer if needed */ },
+    onParticipantLeft: () => { /* Logic to remove peer if needed */ },
     onConnectionChange: handleConnectionChange,
     onPeerConnected: () => { },
     onTranscriptReceived: handleTranscriptReceived,
@@ -302,10 +285,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage,
     }, async (entry) => {
       // 1. Try sending via Socket.IO
-      socketSendTranscript(enrichedEntry);
+      socketSendTranscript(entry);
       
       // 2. Backup: Send via PeerJS Data Channel (Direct)
-      peerSendData({ type: 'transcript', payload: enrichedEntry });
+      peerSendData({ type: 'transcript', payload: entry });
 
       // 3. Fallback logic: If alone in room or socket disconnected, we can still show local translation
       if (isFinal && participants.length === 1) {
@@ -315,7 +298,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript, participants.length]);
+  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript, peerSendData, participants.length, updateTranscript]);
 
   const { isListening, isSupported, startListening, stopListening } = useWebSpeechRecognition({
     language: myLanguage, continuous: true, interimResults: true,
@@ -672,6 +655,14 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       </div>
 
       <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} />
+      
+      {/* Visual Debug Overlay (Remove in production later) */}
+      <div className="fixed bottom-24 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-gray-400 pointer-events-none">
+        <div>Socket: <span className={isSocketReady ? 'text-green-500' : 'text-red-500'}>{isSocketReady ? 'CONNECTED' : 'DISCONNECTED'}</span></div>
+        <div>Peer: <span className={isPeerReady ? 'text-green-500' : 'text-red-500'}>{isPeerReady ? 'READY' : 'WAITING'}</span></div>
+        <div>Peers: <span className="text-white">{connectedPeers.length}</span></div>
+        <div>MyID: <span className="text-white">{myPeerId.slice(0, 8)}...</span></div>
+      </div>
     </div>
   );
 

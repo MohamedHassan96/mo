@@ -33,9 +33,10 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     if (!opts.enabled) return;
 
     console.log(`🔌 Connecting to Socket.IO signaling...`);
-    const socket = io({
+    const socket = io(SOCKET_SERVER_URL, {
       path: '/socket-signal',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 2000,
       timeout: 20000,
@@ -67,7 +68,10 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
       // BUG-FIX-9: flush queued transcripts after reconnect
       const queued = pendingTranscriptsRef.current.splice(0);
       queued.forEach(entry => {
-        socket.emit('raw-transcript', { roomId: cbRef.current.roomId, transcriptEntry: entry });
+        socket.emit('raw-transcript', {
+          roomId: cbRef.current.roomId.trim().toLowerCase(),
+          transcriptEntry: entry
+        });
       });
     });
 
