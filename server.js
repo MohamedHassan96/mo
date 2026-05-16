@@ -33,7 +33,7 @@ const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Allow large transcripts/audio if needed
+app.use(express.json({ limit: '10mb' })); 
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -41,11 +41,11 @@ app.get('/api/health', (_req, res) => {
     service: 'talkbridge',
     socketPath: '/socket-signal',
     groqConfigured: Boolean(GROQ_API_KEY),
-    elevenLabsConfigured: Boolean(ELEVENLABS_API_KEY)
+    elevenLabsConfigured: Boolean(ELEVENLABS_API_KEY),
+    voiceId: ELEVENLABS_VOICE_ID
   });
 });
 
-// Serve Vite's static build files (Frontend)
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const httpServer = createServer(app);
@@ -59,12 +59,6 @@ const io = new Server(httpServer, {
   pingInterval: 25000
 });
 
-// Debug: Log all connection attempts
-io.engine.on("connection_error", (err) => {
-  console.log(`[Socket.IO Engine Error] Code: ${err.code}, Message: ${err.message}, Context:`, err.context);
-});
-
-// Canonical Room State: Record<roomId, Record<socketId, Participant>>
 const rooms = {};
 
 const LANG_NAMES = {
@@ -87,7 +81,6 @@ function cleanTranslatedText(value) {
     .trim();
 }
 
-// Helper: Translation API
 async function translateText(text, sourceLang, targetLang) {
   if (!text || sourceLang === targetLang) return text;
   if (!GROQ_API_KEY) {
@@ -138,7 +131,6 @@ RULES:
   }
 }
 
-// Helper: TTS API
 async function generateTTS(text, language) {
   if (!text) return '';
   if (!ELEVENLABS_API_KEY) {
@@ -173,7 +165,6 @@ async function generateTTS(text, language) {
   }
 }
 
-// REST API Fallbacks (Guaranteed to work on Railway)
 app.post('/api/translate', async (req, res) => {
   try {
     const { text, sourceLang, targetLang } = req.body;
@@ -196,15 +187,13 @@ app.post('/api/tts', async (req, res) => {
 
 
 io.on('connection', (socket) => {
-  console.log(`[Socket] +++ New connection request: ${socket.id} from ${socket.handshake.address}`);
+  console.log(`[Socket] +++ New connection request: ${socket.id}`);
 
-  // 1. Join Room & Canonical State Sync
   socket.on('join-room', (payload, callback) => {
     let { roomId, participant } = payload;
     if (!roomId || !participant) return;
     roomId = roomId.trim().toLowerCase();
 
-    // Leave old rooms
     socket.rooms.forEach(r => { if (r !== socket.id) socket.leave(r); });
     socket.join(roomId);
     
@@ -222,18 +211,15 @@ io.on('connection', (socket) => {
     if (callback) callback({ status: 'ok', participants });
   });
 
-  // 2. Chat with Ack
   socket.on('chat-message', (payload, callback) => {
     let { roomId, message } = payload;
     if (!roomId || !message) return;
     roomId = roomId.trim().toLowerCase();
     
-    // Broadcast to others in the room
     socket.to(roomId).emit('chat-message', { message });
     if (callback) callback({ status: 'sent' });
   });
 
-  // 3. Translated Text & Audio Delivery Pattern
   socket.on('raw-transcript', async (payload, callback) => {
     let { roomId, transcriptEntry } = payload;
     if (!roomId || !transcriptEntry) return;
@@ -241,19 +227,15 @@ io.on('connection', (socket) => {
 
     if (callback) callback({ status: 'received' });
 
-    // Broadcast original text to everyone for instant UI update
     io.in(roomId).emit('transcript-update', { transcriptEntry });
 
     const participants = Object.values(rooms[roomId] || {});
     
-    // Fan-out Translations
     for (const p of participants) {
-      if (p.socketId === socket.id) continue; // Skip sender
-
+      // p.socketId === socket.id is NOT skipped here for testing purposes
       (async () => {
         let finalTranslatedText = transcriptEntry.originalText;
         
-        // Translate if languages differ
         if (p.language !== transcriptEntry.originalLanguage) {
           try {
             finalTranslatedText = await translateText(
@@ -268,7 +250,6 @@ io.on('connection', (socket) => {
           }
         }
 
-        // Generate Audio Base64
         let audioBase64 = '';
         try {
           audioBase64 = await generateTTS(finalTranslatedText, p.language);
@@ -276,7 +257,6 @@ io.on('connection', (socket) => {
           audioBase64 = '';
         }
 
-        // Send direct to specific participant's socket
         io.to(p.socketId).emit('translated-audio', {
           originalId: transcriptEntry.id,
           speakerName: transcriptEntry.speakerName,
@@ -289,9 +269,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 4. Disconnect & Resync
   socket.on('disconnect', () => {
-    console.log(`[Socket] Disconnected: ${socket.id}`);
     for (const roomId in rooms) {
       if (rooms[roomId][socket.id]) {
         delete rooms[roomId][socket.id];
@@ -305,18 +283,11 @@ io.on('connection', (socket) => {
   });
 });
 
-// Catch-all to support React Router SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Socket.IO Backend & Frontend] Running on http://0.0.0.0:${PORT}`);
+  console.log(`[Socket.IO Backend] Running on http://0.0.0.0:${PORT}`);
 });
-
-// Low-level debugging
-httpServer.on('upgrade', (req, socket, head) => {
-  console.log(`[HTTP Upgrade Attempt] URL: ${req.url}, Headers:`, req.headers);
-});
-
