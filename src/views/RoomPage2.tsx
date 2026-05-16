@@ -437,11 +437,25 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               <span className="text-6xl font-black text-brand-neon">{(name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)).charAt(0)}</span>
             </div>
           )}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/10 dark:bg-black/40 backdrop-blur-xl p-2 rounded-[24px] border border-white/10">
-            <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableMic ? 'bg-white/20 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/5 dark:bg-black/40 backdrop-blur-xl p-2.5 rounded-[28px] border border-black/5 dark:border-white/10 shadow-lg dark:shadow-none">
+            <button 
+              onClick={() => setEnableMic(!enableMic)} 
+              className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all shadow-sm ${
+                enableMic 
+                  ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white hover:bg-gray-50' 
+                  : 'bg-red-500 text-white shadow-red-500/20'
+              }`}
+            >
               {enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
-            <button onClick={() => setEnableCamera(!enableCamera)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white/20 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>
+            <button 
+              onClick={() => setEnableCamera(!enableCamera)} 
+              className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all shadow-sm ${
+                enableCamera 
+                  ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white hover:bg-gray-50' 
+                  : 'bg-red-500 text-white shadow-red-500/20'
+              }`}
+            >
               {enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             </button>
           </div>
