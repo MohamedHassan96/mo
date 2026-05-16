@@ -33,7 +33,6 @@ loadLocalEnv();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 
 const LANG_NAMES: Record<string, string> = {
   ar: 'Arabic', en: 'English', fr: 'French', de: 'German',
@@ -123,16 +122,12 @@ async function generateTTS(text: string, language: string): Promise<string> {
   if (!ELEVENLABS_API_KEY) {
     throw new Error('ELEVENLABS_API_KEY is not configured');
   }
-  // Use custom voice ID from env if set, otherwise fall back to per-language defaults
   let voiceId: string;
-  if (ELEVENLABS_VOICE_ID) {
-    voiceId = ELEVENLABS_VOICE_ID;
-  } else if (language === 'ar')      voiceId = 'cjVigY5qzO86Huf0OWal';
+  if (language === 'ar') voiceId = 'cjVigY5qzO86Huf0OWal';
   else if (language === 'fr') voiceId = 'VR6AewLTigWG4xSOukaG';
   else if (language === 'de') voiceId = 'onwK4e9ZLuTAKqWW03F9';
   else if (language === 'es') voiceId = 'MF3mGyEYCl7XYWbV9V6O';
-  else                        voiceId = 'EXAVITQu4vr4xnSDxMaL';
-  console.log(`[TTS] voice=${voiceId} lang=${language} text="${text.slice(0,20)}"`);
+  else voiceId = 'EXAVITQu4vr4xnSDxMaL';
 
   try {
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
@@ -243,7 +238,19 @@ function setupSocketIO(httpServer: any) {
       if (callback) callback({ status: 'sent' });
     });
 
-    // ── Transcript → Translate → TTS → Fan-out ─────────────────────────────
+    // ── Participant State Update ───────────────────────────────────
+    socket.on('update-participant', (payload: any) => {
+      let { roomId, participant } = payload;
+      if (!roomId || !participant) return;
+      roomId = roomId.trim().toLowerCase();
+
+      if (rooms[roomId] && rooms[roomId][socket.id]) {
+        rooms[roomId][socket.id] = { ...rooms[roomId][socket.id], ...participant };
+        io.to(roomId).emit('room-state', { participants: Object.values(rooms[roomId]) });
+      }
+    });
+
+    // ── Transcript → Translate → TTS → Fan-out ─────────────────────
     socket.on('raw-transcript', async (payload: any, callback: any) => {
       const { roomId, transcriptEntry } = payload;
       if (!roomId || !transcriptEntry) return;
@@ -256,30 +263,31 @@ function setupSocketIO(httpServer: any) {
       console.log(`[Translate] "${transcriptEntry.speakerName}" (${transcriptEntry.originalLanguage}) → ${roomParticipants.length} participants`);
 
       for (const p of roomParticipants) {
-        // Note: sender is NOT skipped — they hear their own translation too (solo testing + confirmation)
+        if (p.socketId === socket.id) continue; // skip sender
 
         (async () => {
           const srcLang = transcriptEntry.originalLanguage || 'ar';
           const tgtLang = p.language || 'en';
-          let translated = transcriptEntry.originalText;
+          let translated = transcriptEntry.translatedText || transcriptEntry.originalText;
 
-          if (srcLang !== tgtLang) {
+          // If not already translated to the target language, or if translation is missing
+          if (srcLang !== tgtLang && (!transcriptEntry.translatedLanguage || transcriptEntry.translatedLanguage !== tgtLang || translated === transcriptEntry.originalText)) {
             console.log(`[Translate] ${srcLang} → ${tgtLang}: "${transcriptEntry.originalText}"`);
             try {
               translated = await translateText(transcriptEntry.originalText, srcLang, tgtLang);
             } catch {
-              return;
+              // If server translation fails, still send the original text so the UI updates
+              translated = transcriptEntry.originalText;
             }
             console.log(`[Translate] ✓ "${translated}"`);
           } else {
-            console.log(`[Translate] Same lang (${srcLang}) — no translation`);
+            console.log(`[Translate] Already translated or same lang: "${translated}"`);
           }
 
           let audioBase64 = '';
           try {
             audioBase64 = await generateTTS(translated, tgtLang);
-          } catch (err) {
-            console.error(`[TTS] Failed for ${p.name}:`, err);
+          } catch {
             audioBase64 = '';
           }
 

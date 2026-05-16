@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useRoomStore } from '@/state/roomStore';
+import { useConfigStore } from '@/state/configStore';
+import { getTranslations } from '@/config/i18n';
 import { Send, Languages, Loader2 } from 'lucide-react';
 import type { ChatMessage, ParticipantRole } from '@/types';
 
@@ -14,7 +16,7 @@ interface ChatPanelProps {
 }
 
 function formatTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function ChatPanel({ 
@@ -26,12 +28,14 @@ export default function ChatPanel({
   onSendMessage 
 }: ChatPanelProps) {
   const { chatMessages } = useRoomStore();
+  const { uiLanguage } = useConfigStore();
+  const t = getTranslations(uiLanguage);
+  
   const [message, setMessage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [autoTranslate, setAutoTranslate] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // إزالة المكرر بناءً على الـ id
   const uniqueMessages = chatMessages.filter(
     (msg, index, self) => index === self.findIndex((m) => m.id === msg.id)
   );
@@ -65,7 +69,6 @@ export default function ChatPanel({
     setMessage('');
 
     try {
-      // إنشاء رسالة واحدة فقط تحتوي على النص الأصلي والمترجم
       const chatMessage: ChatMessage = {
         id: uuid(),
         senderId: myId,
@@ -75,7 +78,6 @@ export default function ChatPanel({
         timestamp: Date.now(),
       };
 
-      // إذا كانت الترجمة التلقائية مفعلة واللغات مختلفة
       if (autoTranslate && myLanguage !== partnerLanguage) {
         setIsTranslating(true);
         try {
@@ -85,7 +87,6 @@ export default function ChatPanel({
             partnerLanguage
           );
 
-          // رسالة واحدة تحتوي على الأصل والترجمة
           chatMessage.translatedText = translatedText;
           chatMessage.originalLanguage = myLanguage;
           chatMessage.translatedLanguage = partnerLanguage;
@@ -95,7 +96,6 @@ export default function ChatPanel({
         setIsTranslating(false);
       }
 
-      // الأب (RoomPage) هو المسؤول عن إضافة الرسالة للمتجر وإرسالها للطرف الآخر
       onSendMessage?.(chatMessage);
     } finally {
       isSendingRef.current = false;
@@ -113,7 +113,7 @@ export default function ChatPanel({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900 dark:text-white">الدردشة</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-white">{t.chatTitle}</h3>
         <button
           onClick={() => setAutoTranslate(!autoTranslate)}
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -123,7 +123,7 @@ export default function ChatPanel({
           }`}
         >
           <Languages className="w-3.5 h-3.5" />
-          ترجمة تلقائية
+          {t.chatAutoTranslate}
         </button>
       </div>
 
@@ -132,10 +132,10 @@ export default function ChatPanel({
         {uniqueMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <p className="text-sm text-center">
-              لا توجد رسائل بعد
+              {t.chatEmpty}
             </p>
             <p className="text-xs text-center mt-1 opacity-75">
-              ابدأ المحادثة!
+              {t.chatStart}
             </p>
           </div>
         ) : (
@@ -180,7 +180,7 @@ export default function ChatPanel({
                         : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-700'
                     }`}>
                       <p className={`text-xs mb-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
-                        الترجمة:
+                        {t.chatTranslationLabel}
                       </p>
                       <p className={`text-sm whitespace-pre-wrap leading-relaxed ${
                         isMe ? 'text-indigo-100' : 'text-gray-600 dark:text-gray-300'
@@ -203,7 +203,7 @@ export default function ChatPanel({
         {isTranslating && (
           <div className="flex items-center justify-center gap-2 py-2">
             <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
-            <span className="text-xs text-gray-400">جاري الترجمة...</span>
+            <span className="text-xs text-gray-400">{t.chatTranslating}</span>
           </div>
         )}
       </div>
@@ -216,7 +216,7 @@ export default function ChatPanel({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="اكتب رسالة..."
+            placeholder={t.chatInputPlaceholder}
             disabled={isTranslating}
             dir="auto"
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 

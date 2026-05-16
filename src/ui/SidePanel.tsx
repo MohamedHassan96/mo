@@ -1,4 +1,6 @@
 import { useRoomStore } from '@/state/roomStore';
+import { useConfigStore } from '@/state/configStore';
+import { getTranslations } from '@/config/i18n';
 import { MessageSquare, FileText, Users, X } from 'lucide-react';
 import ChatPanel from './ChatPanel';
 import TranscriptPanel from './TranscriptPanel';
@@ -14,10 +16,10 @@ interface SidePanelProps {
   onSendMessage?: (message: ChatMessage) => void;
 }
 
-const TABS: { id: SidePanelTab; label: string; icon: typeof MessageSquare }[] = [
-  { id: 'chat', label: 'الدردشة', icon: MessageSquare },
-  { id: 'transcript', label: 'النص', icon: FileText },
-  { id: 'participants', label: 'المشاركون', icon: Users },
+const TABS: { id: SidePanelTab; labelKey: 'tabChat' | 'tabTranscript' | 'tabParticipants'; icon: typeof MessageSquare }[] = [
+  { id: 'chat', labelKey: 'tabChat', icon: MessageSquare },
+  { id: 'transcript', labelKey: 'tabTranscript', icon: FileText },
+  { id: 'participants', labelKey: 'tabParticipants', icon: Users },
 ];
 
 export default function SidePanel({ 
@@ -37,6 +39,9 @@ export default function SidePanel({
     setSidePanelTab,
     setSidePanelOpen,
   } = useRoomStore();
+
+  const { uiLanguage } = useConfigStore();
+  const t = getTranslations(uiLanguage);
 
   if (!sidePanelOpen) return null;
 
@@ -66,7 +71,7 @@ export default function SidePanel({
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              <span className="truncate">{tab.label}</span>
+              <span className="truncate">{t[tab.labelKey]}</span>
               {count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   isActive

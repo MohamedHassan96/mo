@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useRoomStore } from '@/state/roomStore';
+import { useConfigStore } from '@/state/configStore';
+import { getTranslations } from '@/config/i18n';
 import { User, Mic, MicOff, MonitorUp, Maximize2 } from 'lucide-react';
 
 interface VideoTileProps {
@@ -17,8 +19,9 @@ function VideoTile({
   isLocal = false,
   isMuted = false,
   isScreenShare = false,
-  isCameraOff = false
-}: VideoTileProps) {
+  isCameraOff = false,
+  t
+}: VideoTileProps & { t: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -54,7 +57,7 @@ function VideoTile({
       <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 flex items-center gap-3 max-w-[calc(100%-1.5rem)] sm:max-w-[calc(100%-2rem)]">
         <div className="min-w-0 px-3 sm:px-4 py-2 rounded-full bg-white/80 dark:bg-[#080808]/80 backdrop-blur-md border border-gray-200 dark:border-[#1E1E1E] flex items-center gap-2 sm:gap-3">
           <span className="min-w-0 truncate text-xs sm:text-sm font-bold text-gray-900 dark:text-white tracking-wide">
-            {name} {isLocal && '(أنت)'}
+            {name} {isLocal && t.videoGridYou}
           </span>
           <div className="w-px h-4 bg-gray-300 dark:bg-[#1E1E1E]" />
           {isMuted ? (
@@ -69,7 +72,7 @@ function VideoTile({
         <>
           <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-orange-50 dark:bg-[#FF4D00]/20 backdrop-blur-md border border-orange-200 dark:border-[#FF4D00]/50 flex items-center gap-2">
             <MonitorUp className="w-4 h-4 text-[#FF4D00]" />
-            <span className="text-sm font-bold text-[#FF4D00]">مشاركة الشاشة</span>
+            <span className="text-sm font-bold text-[#FF4D00]">{t.videoGridScreenShare}</span>
           </div>
           <button
             onClick={async () => {
@@ -82,7 +85,7 @@ function VideoTile({
               }
             }}
             className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center bg-white/80 dark:bg-[#080808]/80 hover:bg-gray-100 dark:hover:bg-[#121212] backdrop-blur-md rounded-full border border-gray-200 dark:border-[#1E1E1E] hover:border-[#FF4D00]/50 dark:hover:border-[#FF4D00]/50 text-gray-600 dark:text-[#A3A3A3] hover:text-[#FF4D00] dark:hover:text-[#FF4D00] transition-all hover:scale-105 shadow-lg dark:shadow-[0_0_20px_rgba(0,0,0,0.5)]"
-            title="توسيع الشاشة"
+            title={t.videoGridExpand}
           >
             <Maximize2 className="w-5 h-5" />
           </button>
@@ -103,6 +106,9 @@ export default function VideoGrid() {
     isMicOn,
     isCameraOn,
   } = useRoomStore();
+
+  const { uiLanguage } = useConfigStore();
+  const t = getTranslations(uiLanguage);
 
   const myParticipant = participants.find((p) => p.id === myId);
   const remoteParticipants = participants.filter((p) => p.id !== myId);
@@ -129,10 +135,11 @@ export default function VideoGrid() {
       {localScreenStream && (
         <VideoTile
           stream={localScreenStream}
-          name={myParticipant?.name || 'أنت'}
+          name={myParticipant?.name || t.videoGridYou}
           isLocal
           isScreenShare
           isMuted={!isMicOn}
+          t={t}
         />
       )}
 
@@ -143,15 +150,17 @@ export default function VideoGrid() {
           name={participant.name}
           isScreenShare
           isMuted={participant.isMicOn === false}
+          t={t}
         />
       ))}
 
       <VideoTile
         stream={localStream}
-        name={myParticipant?.name || 'أنت'}
+        name={myParticipant?.name || t.videoGridYou}
         isLocal
         isMuted={!isMicOn}
         isCameraOff={!isCameraOn}
+        t={t}
       />
 
       {remoteVideoTiles.length > 0 ? (
@@ -162,6 +171,7 @@ export default function VideoGrid() {
             name={participant.name}
             isMuted={participant.isMicOn === false}
             isCameraOff={participant.isCameraOn === false}
+            t={t}
           />
         ))
       ) : (
@@ -169,8 +179,8 @@ export default function VideoGrid() {
           <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-4">
             <User className="w-8 h-8 text-gray-500" />
           </div>
-          <p className="text-gray-400 text-center">في انتظار انضمام الآخرين...</p>
-          <p className="text-gray-500 text-sm mt-2 text-center">شارك رابط الدعوة للبدء</p>
+          <p className="text-gray-400 text-center">{t.videoGridWaiting}</p>
+          <p className="text-gray-500 text-sm mt-2 text-center">{t.videoGridSharePrompt}</p>
         </div>
       )}
     </div>

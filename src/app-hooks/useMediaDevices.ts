@@ -46,20 +46,22 @@ export function useMediaDevices(): UseMediaDevicesReturn {
           height: { ideal: 720 },
           facingMode: 'user',
         },
-        audio: false, // Audio is handled separately
+        audio: false, 
       });
 
       cameraStreamRef.current = stream;
+      const videoTrack = stream.getVideoTracks()[0];
       
-      // If we already have a local stream with audio, add video track to it
       if (localStream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        // Remove old video tracks
+        // Clear existing video tracks first
         localStream.getVideoTracks().forEach(track => {
-          localStream.removeTrack(track);
+          track.enabled = false;
           track.stop();
+          localStream.removeTrack(track);
         });
         localStream.addTrack(videoTrack);
+        // Trigger a store update by spreading the stream (some React versions need this for re-render)
+        setLocalStream(localStream);
       } else {
         setLocalStream(stream);
       }

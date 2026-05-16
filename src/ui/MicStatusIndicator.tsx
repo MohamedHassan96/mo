@@ -61,7 +61,7 @@ export default function MicStatusIndicator({
 
       {/* Status text */}
       <span className={`text-xs font-bold ${getStatusColor()}`}>
-        {processingStatus.stage === 'synthesizing' 
+        {isProcessing 
           ? getStatusLabel() 
           : (isRecording ? getStatusLabel() : 'الميكروفون مغلق')}
       </span>

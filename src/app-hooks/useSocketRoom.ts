@@ -115,6 +115,13 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     });
   }, []);
 
+  const updateParticipant = useCallback((participant: Partial<Participant>) => {
+    socketRef.current?.emit('update-participant', {
+      roomId: cbRef.current.roomId.trim().toLowerCase(),
+      participant
+    });
+  }, []);
+
   const sendTranscript = useCallback((transcriptEntry: TranscriptEntry) => {
     if (!socketRef.current?.connected) {
       // BUG-FIX-9: queue instead of drop when offline

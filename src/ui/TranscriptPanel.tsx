@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getLanguageName, getLanguageDirection } from '@/config/languages';
+import { useConfigStore } from '@/state/configStore';
+import { getTranslations } from '@/config/i18n';
 import { Download, FileText, Volume2, ArrowDown } from 'lucide-react';
 import type { TranscriptEntry } from '@/types';
 
@@ -15,8 +17,10 @@ function formatTime(ts: number): string {
 
 export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const { uiLanguage } = useConfigStore();
+  const t = getTranslations(uiLanguage);
 
-  // إزالة المكرر بناءً على الـ id
   const uniqueTranscripts = transcripts.filter(
     (entry, index, self) => index === self.findIndex((e) => e.id === entry.id)
   );
@@ -28,9 +32,9 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
   }, [uniqueTranscripts.length]);
 
   const handleDownload = () => {
-    const lines = uniqueTranscripts.map((t) => {
-      const time = formatTime(t.timestamp);
-      return `[${time}] ${t.speakerName}\n  ${getLanguageName(t.originalLanguage)}: ${t.originalText}\n  ${getLanguageName(t.translatedLanguage)}: ${t.translatedText}\n`;
+    const lines = uniqueTranscripts.map((entry) => {
+      const time = formatTime(entry.timestamp);
+      return `[${time}] ${entry.speakerName}\n  ${getLanguageName(entry.originalLanguage)}: ${entry.originalText}\n  ${getLanguageName(entry.translatedLanguage)}: ${entry.translatedText}\n`;
     });
     const content = `TalkBridge Transcript\n${'='.repeat(50)}\nDate: ${new Date().toLocaleDateString()}\n\n${lines.join('\n')}`;
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -48,16 +52,16 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#1E1E1E]">
         <div className="flex items-center gap-2">
           <Volume2 className="w-4 h-4 text-[#FF4D00]" />
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">نص الترجمة الصوتية</h3>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t.transcriptTitle}</h3>
         </div>
         {uniqueTranscripts.length > 0 && (
           <button
             onClick={handleDownload}
             className="flex items-center gap-1 text-xs text-[#FF4D00] hover:text-[#e64500] transition-colors font-bold"
-            title="تصدير النص"
+            title={t.transcriptExportTooltip}
           >
             <Download className="w-3.5 h-3.5" />
-            تصدير
+            {t.transcriptExportBtn}
           </button>
         )}
       </div>
@@ -67,13 +71,12 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
         {uniqueTranscripts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600">
             <FileText className="w-10 h-10 mb-2 opacity-50" />
-            <p className="text-sm text-center font-bold">لا يوجد نص بعد</p>
-            <p className="text-xs mt-1 text-center opacity-75">ابدأ الكلام لتظهر الترجمة هنا</p>
+            <p className="text-sm text-center font-bold">{t.transcriptEmpty}</p>
+            <p className="text-xs mt-1 text-center opacity-75">{t.transcriptStart}</p>
           </div>
         ) : (
           uniqueTranscripts.map((entry) => {
             const isMe = entry.speakerId === myId;
-            // لا تظهر الترجمة إذا كنت أنا المتحدث (كما طلب المستخدم)
             const hasTranslation = !isMe && entry.translatedText && entry.translatedText !== entry.originalText;
 
             return (

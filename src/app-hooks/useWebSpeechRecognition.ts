@@ -56,6 +56,11 @@ export function useWebSpeechRecognition(options: UseWebSpeechOptions) {
     else if (language === 'en') r.lang = 'en-US';
     else                        r.lang = language;
 
+    r.onstart = () => {
+      console.log('🎤 Speech Recognition started');
+      setIsListening(true);
+    };
+
     r.onresult = (event: SpeechRecognitionEvent) => {
       let finalText = '', interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -70,13 +75,14 @@ export function useWebSpeechRecognition(options: UseWebSpeechOptions) {
 
     r.onerror = (event: SpeechRecognitionErrorEvent) => {
       // BUG-FIX-3: only ONE restart path — handled in onend, not here.
-      // 'aborted' fires when stop() is called; 'no-speech' is normal.
       if (event.error === 'aborted' || event.error === 'no-speech') return;
       console.warn('[STT] Error:', event.error);
       onError?.(event.error);
     };
 
     r.onend = () => {
+      console.log('🎤 Speech Recognition ended');
+      setIsListening(false);
       // BUG-FIX-3: single restart path — only if we should still be listening
       if (isListeningRef.current && continuous) {
         setTimeout(() => {

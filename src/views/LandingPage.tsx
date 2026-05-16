@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
 import { v4 as uuid } from 'uuid';
+import { useConfigStore } from '@/state/configStore';
+import { getTranslations } from '@/config/i18n';
 import {
   Languages,
   Mic,
@@ -19,6 +21,9 @@ interface LandingPageProps {
 
 export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPageProps) {
   const [roomCode, setRoomCode] = useState('');
+  const { uiLanguage } = useConfigStore();
+  const t = getTranslations(uiLanguage);
+  const isRtl = ['ar', 'he', 'fa', 'ur'].includes(uiLanguage);
 
   const handleCreateRoom = useCallback(() => {
     const roomId = uuid().slice(0, 8).toUpperCase();
@@ -33,46 +38,16 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
   }, [roomCode, onJoinRoom]);
 
   const features = [
-    {
-      icon: Video,
-      title: 'مكالمات فيديو HD',
-      description: 'مكالمات فيديو عالية الجودة مع الكاميرا والصوت',
-      color: 'from-blue-500 to-cyan-500',
-    },
-    {
-      icon: Mic,
-      title: 'ترجمة صوتية فورية',
-      description: 'تكلم بلغتك والآخر يسمعك بلغته مباشرة',
-      color: 'from-indigo-500 to-purple-500',
-    },
-    {
-      icon: MonitorUp,
-      title: 'مشاركة الشاشة',
-      description: 'شارك شاشتك أو نافذة معينة بضغطة واحدة',
-      color: 'from-green-500 to-emerald-500',
-    },
-    {
-      icon: MessageSquare,
-      title: 'دردشة مترجمة',
-      description: 'رسائل نصية مع ترجمة تلقائية',
-      color: 'from-orange-500 to-red-500',
-    },
-    {
-      icon: Globe,
-      title: '13+ لغة',
-      description: 'العربية المصرية، الإنجليزية، الفرنسية، وأكثر',
-      color: 'from-purple-500 to-pink-500',
-    },
-    {
-      icon: Zap,
-      title: 'سرعة فائقة',
-      description: 'ترجمة فورية بتقنية الذكاء الاصطناعي',
-      color: 'from-yellow-500 to-orange-500',
-    },
+    { icon: Video,         title: t.feat1Title, description: t.feat1Desc, color: 'from-blue-500 to-cyan-500' },
+    { icon: Mic,           title: t.feat2Title, description: t.feat2Desc, color: 'from-indigo-500 to-purple-500' },
+    { icon: MonitorUp,     title: t.feat3Title, description: t.feat3Desc, color: 'from-green-500 to-emerald-500' },
+    { icon: MessageSquare, title: t.feat4Title, description: t.feat4Desc, color: 'from-orange-500 to-red-500' },
+    { icon: Globe,         title: t.feat5Title, description: t.feat5Desc, color: 'from-purple-500 to-pink-500' },
+    { icon: Zap,           title: t.feat6Title, description: t.feat6Desc, color: 'from-yellow-500 to-orange-500' },
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] flex flex-col bg-gray-50 dark:bg-[#080808] selection:bg-[#FF4D00] selection:text-white">
+    <div className="min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-5rem)] flex flex-col bg-gray-50 dark:bg-[#080808] selection:bg-[#FF4D00] selection:text-white" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Hero */}
       <section className="relative overflow-hidden pt-10 sm:pt-20 pb-16 sm:pb-32">
         {/* Abstract Liquid Background */}
@@ -86,34 +61,34 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
             {/* Tag */}
             <div className="animate-fade-up inline-flex items-center gap-2 px-4 sm:px-5 py-2 rounded-full bg-orange-50 dark:bg-[#1a0800] border border-orange-200 dark:border-[#FF4D00]/20 mb-6 sm:mb-8">
               <span className="text-xs font-bold text-[#FF4D00] tracking-[0.2em] uppercase">
-                TalkBridge
+                {t.tagline}
               </span>
             </div>
 
             {/* Heading */}
             <h1 className="animate-fade-up delay-100 text-[42px] sm:text-[72px] lg:text-[96px] font-extrabold text-gray-900 dark:text-white tracking-tighter leading-[1.02] sm:leading-[0.95] max-w-4xl mx-auto">
-              اجتماعات بدون
+              {t.heroTitle}
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#FF4D00] to-[#b33600]">
-                حواجز اللغة
+                {t.heroHighlight}
               </span>
             </h1>
 
             {/* Subtext */}
             <p className="animate-fade-up delay-200 mt-5 sm:mt-8 text-base sm:text-2xl text-gray-500 dark:text-[#A3A3A3] max-w-2xl mx-auto leading-relaxed font-light px-1">
-              TalkBridge يجمع مكالمات الفيديو مع الترجمة الصوتية الفورية. تكلم بالعربي المصري والآخر يسمعك بالإنجليزي، في نفس اللحظة.
+              {t.heroDesc}
             </p>
 
             {/* Features mini */}
             <div className="animate-fade-up delay-300 mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm font-bold text-gray-600 dark:text-[#737373]">
               <span className="flex items-center gap-2 bg-white dark:bg-[#121212] px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-none">
-                <Video className="w-4 h-4 text-[#FF4D00]" /> فيديو HD
+                <Video className="w-4 h-4 text-[#FF4D00]" /> {t.badgeHD}
               </span>
               <span className="flex items-center gap-2 bg-white dark:bg-[#121212] px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-none">
-                <Users className="w-4 h-4 text-[#FF4D00]" /> رابط واحد للدعوة
+                <Users className="w-4 h-4 text-[#FF4D00]" /> {t.badgeLink}
               </span>
               <span className="flex items-center gap-2 bg-white dark:bg-[#121212] px-3 sm:px-4 py-2 rounded-full border border-gray-200 dark:border-[#1E1E1E] shadow-sm dark:shadow-none">
-                <Languages className="w-4 h-4 text-[#FF4D00]" /> ترجمة فورية
+                <Languages className="w-4 h-4 text-[#FF4D00]" /> {t.badgeTranslate}
               </span>
             </div>
 
@@ -129,7 +104,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
                 <Video className="w-5 h-5 relative z-10" />
-                <span className="relative z-10">إنشاء غرفة جديدة</span>
+                <span className="relative z-10">{t.createRoom}</span>
               </button>
 
               {/* Action 2: Join Existing Room */}
@@ -138,16 +113,16 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
                   type="text"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value)}
-                  placeholder="أدخل كود الغرفة"
-                  dir="rtl"
+                  placeholder={t.joinPlaceholder}
+                  dir={isRtl ? 'rtl' : 'ltr'}
                   className="w-full px-5 sm:px-6 py-4 sm:py-5 bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl text-base sm:text-lg font-bold text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] transition-all shadow-sm"
                 />
                 <button
                   type="submit"
                   disabled={!roomCode.trim()}
-                  className="absolute left-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-gray-100 dark:bg-[#1A1A1A] hover:bg-[#FF4D00] text-gray-600 dark:text-gray-400 hover:text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed group/join"
+                  className="absolute ltr:right-2 rtl:left-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-gray-100 dark:bg-[#1A1A1A] hover:bg-[#FF4D00] text-gray-600 dark:text-gray-400 hover:text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed group/join"
                 >
-                  <ArrowRight className="w-5 h-5 -scale-x-100 group-hover/join:scale-x-100 transition-transform" />
+                  <ArrowRight className={`w-5 h-5 transition-transform ${isRtl ? '-scale-x-100 group-hover/join:scale-x-100' : 'group-hover/join:translate-x-1'}`} />
                 </button>
               </form>
 
@@ -156,10 +131,10 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
             {/* How it works */}
             <div className="animate-fade-up delay-500 mt-12 sm:mt-20 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
               {[
-                { step: '1', label: 'ابدأ اجتماع', icon: Users },
-                { step: '2', label: 'شارك الرابط', icon: Globe },
-                { step: '3', label: 'تكلم بلغتك', icon: Mic },
-                { step: '4', label: 'الآخر يفهمك', icon: Languages },
+                { step: '1', label: t.step1, icon: Users },
+                { step: '2', label: t.step2, icon: Globe },
+                { step: '3', label: t.step3, icon: Mic },
+                { step: '4', label: t.step4, icon: Languages },
               ].map((item, i) => (
                 <div key={item.step} className="flex items-center">
                   <div className="flex flex-col items-center w-full">
@@ -168,7 +143,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
                     </div>
                     <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-[#D9D9D9] tracking-wide">{item.label}</span>
                   </div>
-                  {i < 3 && <ArrowRight className="w-5 h-5 text-gray-300 dark:text-[#333333] mx-2 hidden sm:block" />}
+                  {i < 3 && <ArrowRight className={`w-5 h-5 text-gray-300 dark:text-[#333333] mx-2 hidden sm:block ${isRtl ? 'scale-x-[-1]' : ''}`} />}
                 </div>
               ))}
             </div>
@@ -180,10 +155,10 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
       <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-16 sm:pb-32">
         <div className="mb-8 sm:mb-12 text-center">
           <span className="text-[#FF4D00] font-bold tracking-[0.2em] uppercase text-xs">
-            // المميزات
+            {t.featuresLabel}
           </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" dir="rtl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" dir={isRtl ? 'rtl' : 'ltr'}>
           {features.map((feature, i) => (
             <div
               key={feature.title}
@@ -197,10 +172,10 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
               >
                 <feature.icon className="w-6 h-6 text-[#FF4D00]" />
               </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3 tracking-tight text-right">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3 tracking-tight text-start">
                 {feature.title}
               </h3>
-              <p className="text-sm sm:text-base text-gray-500 dark:text-[#737373] leading-relaxed text-right">
+              <p className="text-sm sm:text-base text-gray-500 dark:text-[#737373] leading-relaxed text-start">
                 {feature.description}
               </p>
             </div>
@@ -218,7 +193,7 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
             <Video className="w-6 h-6 text-[#FF4D00]" />
             <span className="text-xl font-extrabold text-gray-900 dark:text-white tracking-tighter">TalkBridge</span>
           </div>
-          <p className="text-gray-500 dark:text-[#737373] text-sm font-bold">اجتماعات فيديو بترجمة فورية بدون حواجز لغوية</p>
+          <p className="text-gray-500 dark:text-[#737373] text-sm font-bold">{t.footerDesc}</p>
           
           <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-[#1E1E1E] to-transparent my-4" />
           
