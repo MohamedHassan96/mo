@@ -438,10 +438,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             </div>
           )}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/10 dark:bg-black/40 backdrop-blur-xl p-2 rounded-[24px] border border-white/10">
-            <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableMic ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>
+            <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableMic ? 'bg-white/20 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>
               {enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
             </button>
-            <button onClick={() => setEnableCamera(!enableCamera)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>
+            <button onClick={() => setEnableCamera(!enableCamera)} className={`w-12 h-12 rounded-[16px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white/20 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>
               {enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             </button>
           </div>

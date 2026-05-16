@@ -13,13 +13,13 @@ export default function MicStatusIndicator({
 }: MicStatusIndicatorProps) {
   const getStatusColor = () => {
     switch (processingStatus.stage) {
-      case 'listening': return 'text-green-500';
-      case 'transcribing': return 'text-lime-600';
-      case 'translating': return 'text-purple-500';
-      case 'synthesizing': return 'text-lime-600';
-      case 'playing': return 'text-cyan-500';
-      case 'error': return 'text-red-500';
-      default: return 'text-gray-400';
+      case 'listening': return 'text-brand-muted dark:text-brand-neon';
+      case 'transcribing': return 'text-brand-dark dark:text-white/80';
+      case 'translating': return 'text-emerald-700 dark:text-brand-neon';
+      case 'synthesizing': return 'text-brand-dark dark:text-white/80';
+      case 'playing': return 'text-brand-muted dark:text-brand-neon';
+      case 'error': return 'text-red-600';
+      default: return 'text-emerald-900/40 dark:text-white/30';
     }
   };
 
@@ -41,7 +41,7 @@ export default function MicStatusIndicator({
   const isProcessing = ['transcribing', 'translating', 'synthesizing'].includes(processingStatus.stage);
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1.5 bg-white/50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#2A2A2A] shadow-sm rounded-xl">
+    <div className="flex items-center gap-3 px-3 py-1.5 bg-white/80 dark:bg-bg-dark-900/80 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-sm rounded-xl">
       {/* Mic icon */}
       <div className="relative">
         {isRecording ? (

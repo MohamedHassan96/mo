@@ -110,7 +110,7 @@ export default function MeetingControls({
           <button
             onClick={onToggleMic}
             className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${isMicOn
-                ? 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-emerald-800 dark:text-white/90'
+                ? 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark dark:text-white/90'
                 : 'bg-red-500 hover:bg-red-600 text-white border-none shadow-lg shadow-red-500/20'
               }`}
           >
@@ -120,7 +120,7 @@ export default function MeetingControls({
           <button
             onClick={onToggleCamera}
             className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${isCameraOn
-                ? 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-emerald-800 dark:text-white/90'
+                ? 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark dark:text-white/90'
                 : 'bg-red-500 hover:bg-red-600 text-white border-none shadow-lg shadow-red-500/20'
               }`}
           >
@@ -131,7 +131,7 @@ export default function MeetingControls({
             onClick={handleToggleScreenShare}
             className={`hidden sm:flex w-14 h-14 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${isScreenSharing
                 ? 'bg-brand-neon text-brand-dark border-none'
-                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-emerald-800 dark:text-white/90'
+                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark dark:text-white/90'
               }`}
           >
             {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <MonitorUp className="w-6 h-6" />}
@@ -150,8 +150,8 @@ export default function MeetingControls({
           <button
             onClick={() => setAudioPlaybackEnabled(!audioPlaybackEnabled)}
             className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${audioPlaybackEnabled
-                ? 'bg-green-50 dark:bg-brand-neon/10 hover:bg-green-100 dark:hover:bg-brand-neon/20 text-green-600 dark:text-brand-neon'
-                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-emerald-800/40 dark:text-white/30'
+                ? 'bg-brand-neon/10 dark:bg-brand-neon/10 hover:bg-brand-neon/20 dark:hover:bg-brand-neon/20 text-brand-muted dark:text-brand-neon'
+                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark/40 dark:text-white/30'
               }`}
           >
             {audioPlaybackEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
@@ -161,7 +161,7 @@ export default function MeetingControls({
             onClick={toggleSidePanel}
             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${sidePanelOpen
                 ? 'bg-brand-neon text-brand-dark border-none shadow-lg shadow-brand-neon/20'
-                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-emerald-800/60 dark:text-white/60'
+                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-muted/60 dark:text-white/60'
               }`}
           >
             <MessageSquare className="w-5 h-5" />
@@ -170,7 +170,7 @@ export default function MeetingControls({
           <div className="relative">
             <button
               onClick={() => setShowMore(!showMore)}
-              className="w-12 h-12 rounded-full bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-emerald-800/60 dark:text-white/60 border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 
+              className="w-12 h-12 rounded-full bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-muted/60 dark:text-white/60 border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 
                          flex items-center justify-center transition-all"
             >
               <MoreVertical className="w-5 h-5" />
