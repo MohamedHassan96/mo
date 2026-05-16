@@ -228,6 +228,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const hostParticipant = participants.find(p => p.role === 'host');
 
   const {
+    isReady: isPeerReady,
+    error: peerError,
+    connectedPeers,
+    connectToHost,
+    setLocalStream: setPeerLocalStream,
     disconnect: peerDisconnect,
     sendData: peerSendData
   } = usePeerConnection({
