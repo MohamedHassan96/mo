@@ -7,6 +7,7 @@ interface UseMediaDevicesReturn {
   stopCamera: () => void;
   toggleCamera: () => Promise<void>;
   replaceVideoTrack: (track: MediaStreamTrack | null) => void;
+  setZoom: (value: number) => Promise<void>;
   
   // Audio
   startAudio: () => Promise<MediaStream | null>;
@@ -23,6 +24,7 @@ interface UseMediaDevicesReturn {
   // State
   cameraError: string | null;
   screenShareError: string | null;
+  capabilities: MediaTrackCapabilities | null;
 }
 
 export function useMediaDevices(): UseMediaDevicesReturn {
@@ -43,6 +45,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [screenShareError, setScreenShareError] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<MediaTrackCapabilities | null>(null);
   
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -51,7 +54,6 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   const getDevices = useCallback(async (): Promise<MediaDeviceInfo[]> => {
     try {
-      // First, we need to request permission to get labels
       const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       tempStream.getTracks().forEach(track => track.stop());
       return await navigator.mediaDevices.enumerateDevices();
@@ -90,9 +92,12 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       cameraStreamRef.current = stream;
       const videoTrack = stream.getVideoTracks()[0];
       
+      if (videoTrack.getCapabilities) {
+        setCapabilities(videoTrack.getCapabilities());
+      }
+
       let newStream: MediaStream;
       if (localStream) {
-        // Clear existing video tracks
         localStream.getVideoTracks().forEach(track => {
           track.stop();
           localStream.removeTrack(track);
@@ -116,7 +121,20 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     }
   }, [cameraResolution, localStream, selectedVideoDevice, setCameraOn, setLocalStream]);
 
-  // ─── Audio ────────────────────────────────────────────────────
+  const setZoom = useCallback(async (value: number) => {
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack && videoTrack.getCapabilities) {
+      const caps = videoTrack.getCapabilities() as any;
+      if (caps.zoom) {
+        try {
+          await videoTrack.applyConstraints({ advanced: [{ zoom: value }] } as any);
+        } catch (e) {
+          console.error('Failed to apply zoom:', e);
+        }
+      }
+    }
+  }, [localStream]);
 
   const startAudio = useCallback(async (): Promise<MediaStream | null> => {
     try {
@@ -132,13 +150,10 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       const audioTrack = stream.getAudioTracks()[0];
-      
-      // Initial mic state
       audioTrack.enabled = isMicOn;
 
       let newStream: MediaStream;
       if (localStream) {
-        // Clear existing audio tracks
         localStream.getAudioTracks().forEach(track => {
           track.stop();
           localStream.removeTrack(track);
@@ -182,8 +197,6 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         track.stop();
         localStream.removeTrack(track);
       });
-      
-      // Create a NEW MediaStream with only audio to trigger UI update
       const audioOnlyStream = new MediaStream([...localStream.getAudioTracks()]);
       setLocalStream(audioOnlyStream);
     }
@@ -193,59 +206,35 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   }, [localStream, setCameraOn, setLocalStream]);
 
   const toggleCamera = useCallback(async () => {
-    if (isCameraOn) {
-      stopCamera();
-    } else {
-      await startCamera();
-    }
+    if (isCameraOn) stopCamera();
+    else await startCamera();
   }, [isCameraOn, startCamera, stopCamera]);
 
   const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
     if (!localStream) return;
-    
     localStream.getVideoTracks().forEach(vt => {
       vt.stop();
       localStream.removeTrack(vt);
     });
-
-    if (track) {
-      localStream.addTrack(track);
-    }
-    
-    // Create new stream to force re-render
+    if (track) localStream.addTrack(track);
     setLocalStream(new MediaStream(localStream.getTracks()));
   }, [localStream, setLocalStream]);
-
-  // ─── Screen Share ─────────────────────────────────────────────
 
   const startScreenShare = useCallback(async (): Promise<MediaStream | null> => {
     try {
       setScreenShareError(null);
-      
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: 'monitor',
-        },
+        video: { displaySurface: 'monitor' },
         audio: true,
       });
-
       screenStreamRef.current = stream;
       setLocalScreenStream(stream);
       setScreenSharing(true);
-
-      // Listen for when user stops sharing via browser UI
-      stream.getVideoTracks()[0].onended = () => {
-        stopScreenShare();
-      };
-
+      stream.getVideoTracks()[0].onended = () => stopScreenShare();
       return stream;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to share screen';
-      if (message.includes('Permission denied') || message.includes('NotAllowedError')) {
-        setScreenShareError('Screen sharing was cancelled.');
-      } else {
-        setScreenShareError(message);
-      }
+      setScreenShareError(message);
       return null;
     }
   }, [setLocalScreenStream, setScreenSharing]);
@@ -255,32 +244,20 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       screenStreamRef.current.getTracks().forEach(track => track.stop());
       screenStreamRef.current = null;
     }
-    
     setLocalScreenStream(null);
     setScreenSharing(false);
     setScreenShareError(null);
   }, [setLocalScreenStream, setScreenSharing]);
 
   const toggleScreenShare = useCallback(async () => {
-    if (isScreenSharing) {
-      stopScreenShare();
-    } else {
-      await startScreenShare();
-    }
+    if (isScreenSharing) stopScreenShare();
+    else await startScreenShare();
   }, [isScreenSharing, startScreenShare, stopScreenShare]);
 
   return {
-    startCamera,
-    stopCamera,
-    toggleCamera,
-    replaceVideoTrack,
-    startAudio,
-    stopAudio,
-    startScreenShare,
-    stopScreenShare,
-    toggleScreenShare,
-    getDevices,
-    cameraError,
-    screenShareError,
+    startCamera, stopCamera, toggleCamera, replaceVideoTrack, setZoom,
+    startAudio, stopAudio,
+    startScreenShare, stopScreenShare, toggleScreenShare,
+    getDevices, cameraError, screenShareError, capabilities
   };
 }

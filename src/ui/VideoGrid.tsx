@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRoomStore } from '@/state/roomStore';
 import { useConfigStore } from '@/state/configStore';
+import { useMediaDevices } from '@/app-hooks/useMediaDevices';
 import { getTranslations } from '@/config/i18n';
-import { User, Mic, MicOff, MonitorUp, Maximize2 } from 'lucide-react';
+import { User, Mic, MicOff, Monitor, Maximize2, Settings, Sliders, Info } from 'lucide-react';
 
 interface VideoTileProps {
   stream: MediaStream | null;
@@ -24,23 +25,73 @@ function VideoTile({
 }: VideoTileProps & { t: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { isCameraMirrored } = useRoomStore();
+  const { capabilities, setZoom } = useMediaDevices();
+  const [showStats, setShowStats] = useState(false);
+  const [resolution, setResolution] = useState('');
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = stream;
+
+    // Detect resolution
+    if (stream && stream.getVideoTracks().length > 0) {
+      const settings = stream.getVideoTracks()[0].getSettings();
+      if (settings.width && settings.height) {
+        setResolution(`${settings.width}x${settings.height} @ ${Math.round(settings.frameRate || 0)}fps`);
+      }
+    }
   }, [stream]);
 
   const hasVideo = stream && stream.getVideoTracks().length > 0 && !isCameraOff;
+  const zoomCaps = (isLocal && capabilities) ? (capabilities as any).zoom : null;
 
   return (
     <div className={`relative rounded-[28px] overflow-hidden bg-gray-50 dark:bg-bg-dark-900 border border-gray-200 dark:border-white/5 shadow-xl transition-all ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[220px] sm:min-h-[240px]`}>
       {hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={`w-full h-full object-contain bg-black ${isLocal && !isScreenShare && isCameraMirrored ? 'transform scale-x-[-1]' : ''}`}
-        />
+        <>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted={isLocal}
+            className={`w-full h-full object-contain bg-black ${isLocal && !isScreenShare && isCameraMirrored ? 'transform scale-x-[-1]' : ''}`}
+          />
+
+          {/* Pro Overlays */}
+          {isLocal && (
+            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+              <button 
+                onClick={() => setShowStats(!showStats)}
+                className="w-8 h-8 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+
+              {showStats && (
+                <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 animate-in fade-in slide-in-from-left-2">
+                  <p className="text-[9px] font-black text-brand-neon uppercase tracking-tighter mb-1">Live Feed Stats</p>
+                  <p className="text-[10px] text-white font-mono">{resolution}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Zoom Slider for Local Camera */}
+          {isLocal && !isScreenShare && zoomCaps && (
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3 bg-black/40 backdrop-blur-md p-3 rounded-2xl border border-white/10 z-10 group opacity-40 hover:opacity-100 transition-opacity">
+              <Maximize2 className="w-3 h-3 text-white/50" />
+              <input
+                type="range"
+                min={zoomCaps.min}
+                max={zoomCaps.max}
+                step={zoomCaps.step || 0.1}
+                defaultValue={zoomCaps.min}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="h-24 w-1 appearance-none bg-white/20 rounded-full outline-none accent-brand-neon cursor-pointer [writing-mode:bt-lr] [-webkit-appearance:slider-vertical]"
+              />
+              <Sliders className="w-3 h-3 text-white/50" />
+            </div>
+          )}
+        </>
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-bg-dark-950">
           <div className="w-20 h-20 rounded-[32px] bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shadow-2xl">

@@ -176,6 +176,14 @@ export function useVoiceActivityRecorder({
   // Cleanup on unmount
   useEffect(() => () => teardown(), [teardown]);
 
+  // BUG-FIX: Restart if stream changes while listening
+  useEffect(() => {
+    if (isListening && stream) {
+      console.log('[VAD] Stream changed, restarting recorder...');
+      startListening(stream);
+    }
+  }, [stream, isListening, startListening]);
+
   return {
     isListening,
     isSupported: true,
