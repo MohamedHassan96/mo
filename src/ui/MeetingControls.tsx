@@ -23,9 +23,17 @@ interface MeetingControlsProps {
   roomId: string;
   onEndCall: () => void;
   onToggleMic: () => void;
+  onStartScreenShare?: (stream: MediaStream) => void;
+  onStopScreenShare?: () => void;
 }
 
-export default function MeetingControls({ roomId, onEndCall, onToggleMic }: MeetingControlsProps) {
+export default function MeetingControls({
+  roomId,
+  onEndCall,
+  onToggleMic,
+  onStartScreenShare,
+  onStopScreenShare
+}: MeetingControlsProps) {
   const {
     isMicOn,
     isCameraOn,
@@ -87,6 +95,7 @@ export default function MeetingControls({ roomId, onEndCall, onToggleMic }: Meet
     if (isScreenSharing) {
       setLocalScreenStream(null);
       setScreenSharing(false);
+      onStopScreenShare?.();
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -96,18 +105,20 @@ export default function MeetingControls({ roomId, onEndCall, onToggleMic }: Meet
         
         setLocalScreenStream(stream);
         setScreenSharing(true);
+        onStartScreenShare?.(stream);
         playScreenShareSound();
 
         // Listen for when user stops sharing
         stream.getVideoTracks()[0].onended = () => {
           setLocalScreenStream(null);
           setScreenSharing(false);
+          onStopScreenShare?.();
         };
       } catch (err) {
         console.error('Failed to share screen:', err);
       }
     }
-  }, [isScreenSharing, setLocalScreenStream, setScreenSharing]);
+  }, [isScreenSharing, onStartScreenShare, onStopScreenShare, setLocalScreenStream, setScreenSharing]);
 
   return (
     <div className="bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl border-t border-gray-200 dark:border-[#1E1E1E] px-6 py-4">

@@ -20,6 +20,8 @@ interface RoomState {
   localScreenStream: MediaStream | null;
   remoteStream: MediaStream | null;
   remoteScreenStream: MediaStream | null;
+  remoteStreams: Record<string, MediaStream>;
+  remoteScreenStreams: Record<string, MediaStream>;
 
   // Room actions
   createRoom: (roomId: string, hostId: string) => void;
@@ -43,6 +45,8 @@ interface RoomState {
   setLocalScreenStream: (stream: MediaStream | null) => void;
   setRemoteStream: (stream: MediaStream | null) => void;
   setRemoteScreenStream: (stream: MediaStream | null) => void;
+  setRemoteStreamForPeer: (peerId: string, stream: MediaStream | null) => void;
+  setRemoteScreenStreamForPeer: (peerId: string, stream: MediaStream | null) => void;
 
   // Transcripts
   addTranscript: (entry: TranscriptEntry) => void;
@@ -79,6 +83,8 @@ export const useRoomStore = create<RoomState>()((set) => ({
   localScreenStream: null,
   remoteStream: null,
   remoteScreenStream: null,
+  remoteStreams: {},
+  remoteScreenStreams: {},
 
   createRoom: (roomId, hostId) =>
     set({
@@ -109,6 +115,8 @@ export const useRoomStore = create<RoomState>()((set) => ({
       localScreenStream: null,
       remoteStream: null,
       remoteScreenStream: null,
+      remoteStreams: {},
+      remoteScreenStreams: {},
       processingStatus: { stage: 'idle', message: '' },
     }),
 
@@ -138,6 +146,26 @@ export const useRoomStore = create<RoomState>()((set) => ({
   setLocalScreenStream: (stream) => set({ localScreenStream: stream }),
   setRemoteStream: (stream) => set({ remoteStream: stream }),
   setRemoteScreenStream: (stream) => set({ remoteScreenStream: stream }),
+  setRemoteStreamForPeer: (peerId, stream) =>
+    set((state) => {
+      const remoteStreams = { ...state.remoteStreams };
+      if (stream) remoteStreams[peerId] = stream;
+      else delete remoteStreams[peerId];
+      return {
+        remoteStreams,
+        remoteStream: Object.values(remoteStreams)[0] ?? null,
+      };
+    }),
+  setRemoteScreenStreamForPeer: (peerId, stream) =>
+    set((state) => {
+      const remoteScreenStreams = { ...state.remoteScreenStreams };
+      if (stream) remoteScreenStreams[peerId] = stream;
+      else delete remoteScreenStreams[peerId];
+      return {
+        remoteScreenStreams,
+        remoteScreenStream: Object.values(remoteScreenStreams)[0] ?? null,
+      };
+    }),
 
   addTranscript: (entry) =>
     set((state) => ({

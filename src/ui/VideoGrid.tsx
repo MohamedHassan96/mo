@@ -11,26 +11,24 @@ interface VideoTileProps {
   isCameraOff?: boolean;
 }
 
-function VideoTile({ 
-  stream, 
-  name, 
-  isLocal = false, 
-  isMuted = false, 
-  isScreenShare = false, 
-  isCameraOff = false 
+function VideoTile({
+  stream,
+  name,
+  isLocal = false,
+  isMuted = false,
+  isScreenShare = false,
+  isCameraOff = false
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
+    if (videoRef.current) videoRef.current.srcObject = stream;
   }, [stream]);
 
   const hasVideo = stream && stream.getVideoTracks().length > 0 && !isCameraOff;
 
   return (
-    <div className={`relative rounded-[35px] overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#1E1E1E] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] ${isScreenShare ? 'col-span-2 row-span-2' : ''} min-h-[200px]`}>
+    <div className={`relative rounded-[24px] overflow-hidden bg-gray-100 dark:bg-[#121212] border border-gray-200 dark:border-[#1E1E1E] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] ${isScreenShare ? 'lg:col-span-2 lg:row-span-2' : ''} min-h-[200px]`}>
       {hasVideo ? (
         <video
           ref={videoRef}
@@ -52,8 +50,7 @@ function VideoTile({
           </div>
         </div>
       )}
-      
-      {/* Name badge */}
+
       <div className="absolute bottom-4 left-4 flex items-center gap-3">
         <div className="px-4 py-2 rounded-full bg-white/80 dark:bg-[#080808]/80 backdrop-blur-md border border-gray-200 dark:border-[#1E1E1E] flex items-center gap-3">
           <span className="text-sm font-bold text-gray-900 dark:text-white tracking-wide">
@@ -68,22 +65,17 @@ function VideoTile({
         </div>
       </div>
 
-      {/* Screen share indicator & Maximize button */}
       {isScreenShare && (
         <>
           <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-orange-50 dark:bg-[#FF4D00]/20 backdrop-blur-md border border-orange-200 dark:border-[#FF4D00]/50 flex items-center gap-2">
             <MonitorUp className="w-4 h-4 text-[#FF4D00]" />
             <span className="text-sm font-bold text-[#FF4D00]">مشاركة الشاشة</span>
           </div>
-          <button 
+          <button
             onClick={async () => {
               if (videoRef.current) {
                 try {
-                  if (videoRef.current.requestFullscreen) {
-                    await videoRef.current.requestFullscreen();
-                  } else if ((videoRef.current as any).webkitRequestFullscreen) {
-                    (videoRef.current as any).webkitRequestFullscreen();
-                  }
+                  await videoRef.current.requestFullscreen?.();
                 } catch (e) {
                   console.error('Fullscreen failed', e);
                 }
@@ -104,34 +96,36 @@ export default function VideoGrid() {
   const {
     localStream,
     localScreenStream,
-    remoteStream,
-    remoteScreenStream,
+    remoteStreams,
+    remoteScreenStreams,
     participants,
     myId,
     isMicOn,
     isCameraOn,
   } = useRoomStore();
 
-  const myParticipant = participants.find(p => p.id === myId);
-  const remoteParticipant = participants.find(p => p.id !== myId);
+  const myParticipant = participants.find((p) => p.id === myId);
+  const remoteParticipants = participants.filter((p) => p.id !== myId);
+  const remoteVideoTiles = remoteParticipants.map((participant) => ({
+    participant,
+    stream: participant.peerId ? remoteStreams[participant.peerId] ?? null : null,
+  }));
+  const remoteScreenTiles = remoteParticipants
+    .map((participant) => ({
+      participant,
+      stream: participant.peerId ? remoteScreenStreams[participant.peerId] ?? null : null,
+    }))
+    .filter((tile): tile is { participant: typeof remoteParticipants[number]; stream: MediaStream } => Boolean(tile.stream));
 
-  const hasRemote = remoteStream || remoteParticipant;
-  const hasScreenShare = localScreenStream || remoteScreenStream;
-
-  // Determine grid layout
-  const getGridClass = () => {
-    if (hasScreenShare) {
-      return 'grid-cols-3 grid-rows-2';
-    }
-    if (hasRemote) {
-      return 'grid-cols-2';
-    }
-    return 'grid-cols-1';
-  };
+  const tileCount = 1 + remoteVideoTiles.length + remoteScreenTiles.length + (localScreenStream ? 1 : 0);
+  const gridClass = tileCount <= 1
+    ? 'grid-cols-1'
+    : tileCount === 2
+      ? 'grid-cols-1 lg:grid-cols-2'
+      : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3';
 
   return (
-    <div className={`flex-1 grid gap-4 ${getGridClass()} auto-rows-fr`}>
-      {/* Screen shares take priority */}
+    <div className={`flex-1 grid gap-4 ${gridClass} auto-rows-fr`}>
       {localScreenStream && (
         <VideoTile
           stream={localScreenStream}
@@ -141,17 +135,17 @@ export default function VideoGrid() {
           isMuted={!isMicOn}
         />
       )}
-      
-      {remoteScreenStream && (
-        <VideoTile
-          stream={remoteScreenStream}
-          name={remoteParticipant?.name || 'الضيف'}
-          isScreenShare
-          isMuted={false}
-        />
-      )}
 
-      {/* Local video */}
+      {remoteScreenTiles.map(({ participant, stream }) => (
+        <VideoTile
+          key={`screen-${participant.id}`}
+          stream={stream}
+          name={participant.name}
+          isScreenShare
+          isMuted={participant.isMicOn === false}
+        />
+      ))}
+
       <VideoTile
         stream={localStream}
         name={myParticipant?.name || 'أنت'}
@@ -160,25 +154,23 @@ export default function VideoGrid() {
         isCameraOff={!isCameraOn}
       />
 
-      {/* Remote video or waiting placeholder */}
-      {hasRemote ? (
-        <VideoTile
-          stream={remoteStream}
-          name={remoteParticipant?.name || 'الضيف'}
-          isMuted={remoteParticipant?.isMicOn === false}
-          isCameraOff={remoteParticipant?.isCameraOn === false}
-        />
+      {remoteVideoTiles.length > 0 ? (
+        remoteVideoTiles.map(({ participant, stream }) => (
+          <VideoTile
+            key={participant.id}
+            stream={stream}
+            name={participant.name}
+            isMuted={participant.isMicOn === false}
+            isCameraOff={participant.isCameraOn === false}
+          />
+        ))
       ) : (
         <div className="rounded-2xl bg-gray-800/50 border-2 border-dashed border-gray-700 flex flex-col items-center justify-center p-8 min-h-[200px]">
           <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-4">
             <User className="w-8 h-8 text-gray-500" />
           </div>
-          <p className="text-gray-400 text-center">
-            في انتظار انضمام الآخرين...
-          </p>
-          <p className="text-gray-500 text-sm mt-2 text-center">
-            شارك رابط الدعوة للبدء
-          </p>
+          <p className="text-gray-400 text-center">في انتظار انضمام الآخرين...</p>
+          <p className="text-gray-500 text-sm mt-2 text-center">شارك رابط الدعوة للبدء</p>
         </div>
       )}
     </div>

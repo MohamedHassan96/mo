@@ -25,6 +25,7 @@ interface Options {
 
 interface Conn {
   mc: MediaConnection | null;
+  sc: MediaConnection | null;
   dc: DataConnection | null;
 }
 
@@ -40,20 +41,29 @@ export function usePeerConnection(opts: Options) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerRef = useRef<InstanceType<typeof Peer> | null>(null);
 
-  const { setRemoteStream } = useRoomStore();
+  const { setRemoteStreamForPeer, setRemoteScreenStreamForPeer } = useRoomStore();
+
+  const upsertConn = useCallback((peerId: string, patch: Partial<Conn>) => {
+    const existing = connsRef.current.get(peerId) ?? { mc: null, sc: null, dc: null };
+    connsRef.current.set(peerId, { ...existing, ...patch });
+  }, []);
+
+  const pruneConn = useCallback((peerId: string) => {
+    const existing = connsRef.current.get(peerId);
+    if (existing && !existing.mc && !existing.sc && !existing.dc) connsRef.current.delete(peerId);
+  }, []);
 
   const refreshPeers = useCallback(() => {
     const peers = Array.from(connsRef.current.entries())
-      .filter(([_, c]) => c.mc || c.dc)
-      .map(([pid, _]) => pid);
+      .filter(([, c]) => c.mc || c.sc || c.dc)
+      .map(([pid]) => pid);
     setConnectedPeers(peers);
     cbRef.current.onConnectionChange(peers.length > 0, peers.length);
   }, []);
 
-  const handleIncomingData = useCallback((data: any, fromPeerId: string) => {
+  const handleIncomingData = useCallback((data: unknown) => {
     const msg = data as Msg;
-    console.log(`📩 P2P Data from ${fromPeerId}:`, msg.type);
-    
+
     switch (msg.type) {
       case 'chat':
         cbRef.current.onChatMessage(msg.payload);
@@ -70,10 +80,7 @@ export function usePeerConnection(opts: Options) {
   useEffect(() => {
     if (opts.enabled === false) return;
 
-    const peerId = opts.myId;
-    console.log(`🔗 Peer: ${peerId} (${opts.isHost ? 'HOST' : 'GUEST'})`);
-
-    const peer = new Peer(peerId, {
+    const peer = new Peer(opts.myId, {
       debug: 1,
       config: {
         iceServers: [
@@ -89,63 +96,63 @@ export function usePeerConnection(opts: Options) {
 
     const readyTimer = setTimeout(() => { setIsReady(true); }, 5000);
 
-    // Handle Incoming Data Channels
     peer.on('connection', (conn) => {
-      console.log(`🔌 P2P Data Channel opened by: ${conn.peer}`);
-      const pid = conn.peer;
-      
-      const upsert = () => {
-        const existing = connsRef.current.get(pid);
-        if (existing) { existing.dc = conn; }
-        else connsRef.current.set(pid, { mc: null, dc: conn });
-      };
-      upsert();
+      const peerId = conn.peer;
+      upsertConn(peerId, { dc: conn });
 
-      conn.on('data', (data) => handleIncomingData(data, pid));
+      conn.on('open', () => {
+        cbRef.current.onPeerConnected?.(peerId);
+        refreshPeers();
+      });
+      conn.on('data', (data) => handleIncomingData(data));
       conn.on('close', () => {
-        connsRef.current.delete(pid);
+        const existing = connsRef.current.get(peerId);
+        if (existing) existing.dc = null;
+        pruneConn(peerId);
         refreshPeers();
       });
       refreshPeers();
     });
 
-    // Handle Incoming Calls
     peer.on('call', (call) => {
-      const pid = call.peer;
-      console.log(`📞 Incoming call from: ${pid}`);
+      const peerId = call.peer;
+      const kind = call.metadata?.kind === 'screen' ? 'screen' : 'camera';
 
-      const stream = localStreamRef.current;
-      call.answer(stream || undefined);
-
-      const upsert = () => {
-        const existing = connsRef.current.get(pid);
-        if (existing) { existing.mc = call; }
-        else connsRef.current.set(pid, { mc: call, dc: null });
-      };
-      upsert();
+      call.answer(kind === 'camera' ? localStreamRef.current ?? undefined : undefined);
+      upsertConn(peerId, kind === 'screen' ? { sc: call } : { mc: call });
 
       call.on('stream', (remoteStream) => {
-        cbRef.current.onRemoteStream(remoteStream, pid);
-        setRemoteStream(remoteStream);
+        if (kind === 'screen') {
+          setRemoteScreenStreamForPeer(peerId, remoteStream);
+        } else {
+          cbRef.current.onRemoteStream(remoteStream, peerId);
+          setRemoteStreamForPeer(peerId, remoteStream);
+        }
         refreshPeers();
       });
 
       call.on('close', () => {
-        connsRef.current.delete(pid);
-        cbRef.current.onParticipantLeft(pid);
+        const existing = connsRef.current.get(peerId);
+        if (existing) {
+          if (kind === 'screen') existing.sc = null;
+          else existing.mc = null;
+        }
+        if (kind === 'screen') setRemoteScreenStreamForPeer(peerId, null);
+        else setRemoteStreamForPeer(peerId, null);
+        pruneConn(peerId);
+        cbRef.current.onParticipantLeft(peerId);
         refreshPeers();
       });
+      refreshPeers();
     });
 
-    peer.on('open', (id) => {
-      console.log('✅ Peer open:', id);
+    peer.on('open', () => {
       clearTimeout(readyTimer);
       setIsReady(true);
       setError(null);
     });
 
     peer.on('error', (err) => {
-      console.error('❌ Peer error:', err.type);
       clearTimeout(readyTimer);
       setIsReady(true);
       if (err.type === 'unavailable-id') setError(opts.isHost ? 'الغرفة مستخدمة بالفعل' : null);
@@ -157,96 +164,150 @@ export function usePeerConnection(opts: Options) {
 
     return () => {
       clearTimeout(readyTimer);
-      connsRef.current.forEach(c => {
+      connsRef.current.forEach((c, peerId) => {
         c.mc?.close();
+        c.sc?.close();
         c.dc?.close();
+        setRemoteStreamForPeer(peerId, null);
+        setRemoteScreenStreamForPeer(peerId, null);
       });
       connsRef.current.clear();
       peer.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.roomId, opts.isHost, opts.enabled, opts.myId]);
+  }, [
+    opts.roomId,
+    opts.isHost,
+    opts.enabled,
+    opts.myId,
+    upsertConn,
+    pruneConn,
+    refreshPeers,
+    handleIncomingData,
+    setRemoteStreamForPeer,
+    setRemoteScreenStreamForPeer
+  ]);
 
-  const connectToHost = useCallback(async (stream: MediaStream) => {
+  const connectToPeer = useCallback(async (targetPeerId: string, stream: MediaStream) => {
     localStreamRef.current = stream;
     const peer = peerRef.current;
-    if (!peer) return false;
+    if (!peer || !targetPeerId || targetPeerId === opts.myId) return false;
+
+    const existing = connsRef.current.get(targetPeerId);
+    if (existing?.mc && existing?.dc) return true;
 
     if (!peer.open) {
-      await new Promise<void>((res) => {
-        peer.once('open', () => res());
-        setTimeout(res, 4000);
+      await new Promise<void>((resolve) => {
+        peer.once('open', () => resolve());
+        setTimeout(resolve, 4000);
       });
     }
 
-    const targetHostId = opts.hostId || opts.roomId;
-    console.log(`🔌 P2P: Connecting to Host: ${targetHostId}`);
-
     try {
-      // 1. Data Connection
-      const dataConn = peer.connect(targetHostId);
+      const dataConn = existing?.dc?.open ? existing.dc : peer.connect(targetPeerId);
+      upsertConn(targetPeerId, { dc: dataConn });
       dataConn.on('open', () => {
-        console.log('✅ P2P Data Channel to Host open');
-        const existing = connsRef.current.get(targetHostId);
-        if (existing) existing.dc = dataConn;
-        else connsRef.current.set(targetHostId, { mc: null, dc: dataConn });
+        cbRef.current.onPeerConnected?.(targetPeerId);
         refreshPeers();
       });
-      dataConn.on('data', (data) => handleIncomingData(data, targetHostId));
+      dataConn.on('data', (data) => handleIncomingData(data));
+      dataConn.on('close', () => {
+        const current = connsRef.current.get(targetPeerId);
+        if (current) current.dc = null;
+        pruneConn(targetPeerId);
+        refreshPeers();
+      });
 
-      // 2. Media Call
-      const call = peer.call(targetHostId, stream);
-      const existing = connsRef.current.get(targetHostId);
-      if (existing) existing.mc = call;
-      else connsRef.current.set(targetHostId, { mc: call, dc: null });
-
+      const call = peer.call(targetPeerId, stream, { metadata: { kind: 'camera' } });
+      upsertConn(targetPeerId, { mc: call });
       call.on('stream', (remoteStream) => {
-        cbRef.current.onRemoteStream(remoteStream, targetHostId);
-        setRemoteStream(remoteStream);
+        cbRef.current.onRemoteStream(remoteStream, targetPeerId);
+        setRemoteStreamForPeer(targetPeerId, remoteStream);
+        refreshPeers();
+      });
+      call.on('close', () => {
+        const current = connsRef.current.get(targetPeerId);
+        if (current) current.mc = null;
+        setRemoteStreamForPeer(targetPeerId, null);
+        pruneConn(targetPeerId);
         refreshPeers();
       });
 
       return true;
     } catch (e) {
-      console.error('connectToHost error:', e);
+      console.error('connectToPeer error:', e);
       return false;
     }
-  }, [opts.roomId, opts.hostId, refreshPeers, handleIncomingData, setRemoteStream]);
+  }, [opts.myId, upsertConn, pruneConn, refreshPeers, handleIncomingData, setRemoteStreamForPeer]);
+
+  const connectToHost = useCallback(async (stream: MediaStream) => {
+    return connectToPeer(opts.hostId || opts.roomId, stream);
+  }, [connectToPeer, opts.hostId, opts.roomId]);
 
   const sendData = useCallback((msg: Msg) => {
-    connsRef.current.forEach((conn, pid) => {
-      if (conn.dc && conn.dc.open) {
-        console.log(`📤 Sending P2P Data to ${pid}:`, msg.type);
-        conn.dc.send(msg);
-      }
+    connsRef.current.forEach((conn) => {
+      if (conn.dc?.open) conn.dc.send(msg);
     });
   }, []);
 
-  const setLocalStream = useCallback((s: MediaStream) => { localStreamRef.current = s; }, []);
+  const setLocalStream = useCallback((stream: MediaStream) => {
+    localStreamRef.current = stream;
+  }, []);
+
+  const startScreenShare = useCallback((stream: MediaStream) => {
+    const peer = peerRef.current;
+    if (!peer?.open) return;
+
+    connsRef.current.forEach((conn, peerId) => {
+      conn.sc?.close();
+      const call = peer.call(peerId, stream, { metadata: { kind: 'screen' } });
+      conn.sc = call;
+      call.on('close', () => {
+        const current = connsRef.current.get(peerId);
+        if (current) current.sc = null;
+      });
+    });
+  }, []);
+
+  const stopScreenShare = useCallback(() => {
+    connsRef.current.forEach((conn) => {
+      conn.sc?.close();
+      conn.sc = null;
+    });
+  }, []);
 
   const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
-    connsRef.current.forEach(c => {
-      if (c.mc && track && c.mc.peerConnection) {
-        const sender = c.mc.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    connsRef.current.forEach((conn) => {
+      if (conn.mc && track && conn.mc.peerConnection) {
+        const sender = conn.mc.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
         sender?.replaceTrack(track).catch(console.error);
       }
     });
   }, []);
 
   const disconnect = useCallback(() => {
-    connsRef.current.forEach(c => {
-      c.mc?.close();
-      c.dc?.close();
+    connsRef.current.forEach((conn, peerId) => {
+      conn.mc?.close();
+      conn.sc?.close();
+      conn.dc?.close();
+      setRemoteStreamForPeer(peerId, null);
+      setRemoteScreenStreamForPeer(peerId, null);
     });
     connsRef.current.clear();
     refreshPeers();
-  }, [refreshPeers]);
+  }, [refreshPeers, setRemoteStreamForPeer, setRemoteScreenStreamForPeer]);
 
   return {
-    isReady, error, connectedPeers,
+    isReady,
+    error,
+    connectedPeers,
     myPeerId: peerRef.current?.id ?? '',
-    connectToHost, setLocalStream,
-    replaceVideoTrack, disconnect,
+    connectToHost,
+    connectToPeer,
+    setLocalStream,
+    startScreenShare,
+    stopScreenShare,
+    replaceVideoTrack,
+    disconnect,
     sendData
   };
 }

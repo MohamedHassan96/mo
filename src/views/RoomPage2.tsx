@@ -186,6 +186,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     roomId: normalizedRoomId,
     participant: {
       id: participantIdRef.current,
+      peerId: myPeerId,
       name: name || (role === 'host' ? 'المضيف' : 'الضيف'),
       role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera,
       isScreenSharing: false, isConnected: true,
@@ -217,7 +218,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     error: peerError,
     connectedPeers,
     connectToHost,
+    connectToPeer,
     setLocalStream: setPeerLocalStream,
+    startScreenShare: peerStartScreenShare,
+    stopScreenShare: peerStopScreenShare,
     disconnect: peerDisconnect,
     sendData: peerSendData
   } = usePeerConnection({
@@ -330,6 +334,16 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     }
   }, [phase, isPeerReady, role, connectToHost, localStream]);
 
+  useEffect(() => {
+    if (phase === 'setup' || !isPeerReady || !localStream) return;
+    participants
+      .map((p) => p.peerId)
+      .filter((peerId): peerId is string => Boolean(peerId && peerId !== myPeerId))
+      .forEach((peerId) => {
+        connectToPeer(peerId, localStream);
+      });
+  }, [phase, isPeerReady, localStream, participants, myPeerId, connectToPeer]);
+
 
   const getMediaStream = useCallback(async () => {
     let stream: MediaStream | null = null;
@@ -358,7 +372,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
     setPhase('connecting');
     const myParticipant: Participant = {
-      id: participantId, name: name || (role === 'host' ? 'المضيف' : 'الضيف'),
+      id: participantId, peerId: myPeerId, name: name || (role === 'host' ? 'المضيف' : 'الضيف'),
       role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera,
       isScreenSharing: false, isConnected: true,
     };
@@ -654,7 +668,13 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
         )}
       </div>
 
-      <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} />
+      <MeetingControls
+        roomId={roomId}
+        onEndCall={handleEndCall}
+        onToggleMic={handleToggleMic}
+        onStartScreenShare={peerStartScreenShare}
+        onStopScreenShare={peerStopScreenShare}
+      />
       
       {/* Visual Debug Overlay (Remove in production later) */}
       <div className="fixed bottom-24 left-4 z-[9999] bg-black/80 backdrop-blur-md p-3 rounded-xl border border-white/10 text-[10px] font-mono text-gray-400 pointer-events-none">

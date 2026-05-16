@@ -14,6 +14,7 @@ export type ParticipantRole = 'host' | 'guest';
 
 export interface Participant {
   id: string;
+  peerId?: string;
   name: string;
   role: ParticipantRole;
   language: string;
