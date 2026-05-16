@@ -278,7 +278,8 @@ function setupSocketIO(httpServer: any) {
           let audioBase64 = '';
           try {
             audioBase64 = await generateTTS(translated, tgtLang);
-          } catch {
+          } catch (err) {
+            console.error(`[TTS] Failed for ${p.name}:`, err);
             audioBase64 = '';
           }
 

@@ -227,36 +227,60 @@ io.on('connection', (socket) => {
 
     if (callback) callback({ status: 'received' });
 
+    // ① أرسل النص الأصلي لكل أفراد الغرفة فوراً (للـ UI)
     io.in(roomId).emit('transcript-update', { transcriptEntry });
 
     const participants = Object.values(rooms[roomId] || {});
-    
+    console.log(`[raw-transcript] Room=${roomId} | Participants=${participants.map(p => `${p.name}(${p.language})`).join(', ')} | Speaker=${transcriptEntry.speakerName}(${transcriptEntry.originalLanguage})`);
+
     for (const p of participants) {
-      // p.socketId === socket.id is NOT skipped here for testing purposes
+      // ② تخطَّ المتكلم نفسه — هو عارف اللي قاله
+      if (p.socketId === socket.id) {
+        console.log(`[TTS] Skipping sender: ${p.name}`);
+        continue;
+      }
+
       (async () => {
         let finalTranslatedText = transcriptEntry.originalText;
-        
+
+        // ③ ترجمة فقط لو اللغتين مختلفتين
         if (p.language !== transcriptEntry.originalLanguage) {
           try {
             finalTranslatedText = await translateText(
-              transcriptEntry.originalText, 
-              transcriptEntry.originalLanguage, 
+              transcriptEntry.originalText,
+              transcriptEntry.originalLanguage,
               p.language
             );
-            console.log(`[Socket] Translated for ${p.name}: ${transcriptEntry.originalText.slice(0,15)} -> ${finalTranslatedText.slice(0,15)}`);
+            console.log(`[Translation] For ${p.name}(${p.language}): "${transcriptEntry.originalText.slice(0,20)}" → "${finalTranslatedText.slice(0,20)}"`);
           } catch (err) {
-            console.error(`[Socket] Translation failed for ${p.name}:`, err.message);
+            console.error(`[Translation] FAILED for ${p.name}:`, err.message);
+            // أرسل النص الأصلي بدون ترجمة ولا TTS
+            io.to(p.socketId).emit('translated-audio', {
+              originalId: transcriptEntry.id,
+              speakerName: transcriptEntry.speakerName,
+              originalText: transcriptEntry.originalText,
+              translatedText: transcriptEntry.originalText,
+              translatedLanguage: transcriptEntry.originalLanguage,
+              audioBase64: ''
+            });
             return;
           }
+        } else {
+          console.log(`[TTS] Same language (${p.language}), sending text only to ${p.name}`);
         }
 
+        // ④ توليد الصوت عبر ElevenLabs
         let audioBase64 = '';
         try {
           audioBase64 = await generateTTS(finalTranslatedText, p.language);
-        } catch {
-          audioBase64 = '';
+          console.log(`[TTS] Generated ${audioBase64.length} chars of audio for ${p.name}`);
+        } catch (err) {
+          console.error(`[TTS] FAILED for ${p.name}:`, err.message);
+          // أرسل النص بدون صوت — الـ Frontend سيستخدم Web Speech كـ fallback
         }
 
+        // ⑤ أرسل الصوت المترجم للمستلم
+        console.log(`[translated-audio] → Sending to ${p.name} (socket: ${p.socketId})`);
         io.to(p.socketId).emit('translated-audio', {
           originalId: transcriptEntry.id,
           speakerName: transcriptEntry.speakerName,

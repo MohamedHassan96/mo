@@ -119,6 +119,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }) => {
     if (!data.translatedText?.trim()) return;
 
+    console.log(`[TTS] received translated-audio | speaker=${data.speakerName} | hasAudio=${Boolean(data.audioBase64)} | lang=${data.translatedLanguage}`);
+
     // تحديث النص المترجم في الـ UI
     updateTranscript(data.originalId, {
       translatedText: data.translatedText,
@@ -137,19 +139,47 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       }
     };
 
-    // شغّل صوت ElevenLabs فقط. لو السيرفر ما رجعش صوت، نعرض النص بدون رد آلي من المتصفح.
+    // شغّل صوت ElevenLabs لو موجود
     if (data.audioBase64) {
       const audio = document.getElementById('tts-audio-player') as HTMLAudioElement;
       if (audio) {
+        console.log('[TTS] Playing via tts-audio-player element');
         audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
         audio.onended = afterPlay;
-        audio.onerror = afterPlay;
-        audio.play().catch(afterPlay);
+        audio.onerror = (e) => { console.error('[TTS] Audio play error:', e); afterPlay(); };
+        audio.play().catch((err) => {
+          console.error('[TTS] play() rejected (autoplay blocked?):', err);
+          // Fallback لو الـ autoplay اتحجب
+          if (data.translatedText && 'speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(data.translatedText);
+            utterance.lang = data.translatedLanguage === 'ar' ? 'ar-EG' : data.translatedLanguage;
+            utterance.onend = () => afterPlay();
+            utterance.onerror = () => afterPlay();
+            window.speechSynthesis.speak(utterance);
+          } else {
+            afterPlay();
+          }
+        });
         return;
+      } else {
+        console.error('[TTS] tts-audio-player element NOT FOUND in DOM!');
       }
     }
 
+    // Fallback: Browser Speech Synthesis لو مفيش audioBase64 أو مفيش element
+    if (data.translatedText && 'speechSynthesis' in window) {
+      console.warn('[TTS] Using Web Speech API fallback');
+      const utterance = new SpeechSynthesisUtterance(data.translatedText);
+      utterance.lang = data.translatedLanguage === 'ar' ? 'ar-EG' : data.translatedLanguage;
+      utterance.rate = 1.0;
+      utterance.onend = afterPlay;
+      utterance.onerror = () => afterPlay();
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
     afterPlay();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateTranscript, setProcessingStatus]);
 
@@ -617,7 +647,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const renderActive = () => (
     <div className="h-[calc(100dvh-4rem)] sm:h-[calc(100dvh-5rem)] flex flex-col bg-gray-50 dark:bg-[#050505] overflow-hidden">
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ position: 'fixed', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
-      <audio id="tts-audio-player" playsInline className="hidden" />
       {showInviteModal && renderInviteModal()}
 
       {/* Top Glass Header */}
@@ -682,5 +711,11 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     </div>
   );
 
-  return phase === 'setup' ? renderSetup() : phase === 'connecting' ? renderConnecting() : renderActive();
+  return (
+    <>
+      {/* tts-audio-player موجود دايماً في الـ DOM عشان autoplay يشتغل من أول ما يتفاعل المستخدم */}
+      <audio id="tts-audio-player" playsInline style={{ position: 'fixed', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} />
+      {phase === 'setup' ? renderSetup() : phase === 'connecting' ? renderConnecting() : renderActive()}
+    </>
+  );
 }
