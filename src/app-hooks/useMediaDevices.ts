@@ -6,6 +6,7 @@ interface UseMediaDevicesReturn {
   startCamera: () => Promise<MediaStream | null>;
   stopCamera: () => void;
   toggleCamera: () => Promise<void>;
+  replaceVideoTrack: (track: MediaStreamTrack | null) => void;
   
   // Screen share
   startScreenShare: () => Promise<MediaStream | null>;
@@ -53,21 +54,26 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       const videoTrack = stream.getVideoTracks()[0];
       
       if (localStream) {
-        // Clear existing video tracks first
+        // Clear existing video tracks
         localStream.getVideoTracks().forEach(track => {
-          track.enabled = false;
           track.stop();
           localStream.removeTrack(track);
         });
-        localStream.addTrack(videoTrack);
-        // Trigger a store update by spreading the stream (some React versions need this for re-render)
-        setLocalStream(localStream);
+
+        // Create a NEW MediaStream instance to trigger React state update in VideoGrid
+        const newStream = new MediaStream([
+          ...localStream.getAudioTracks(),
+          videoTrack
+        ]);
+        
+        setLocalStream(newStream);
+        setCameraOn(true);
+        return newStream;
       } else {
         setLocalStream(stream);
+        setCameraOn(true);
+        return stream;
       }
-      
-      setCameraOn(true);
-      return stream;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to access camera';
       if (message.includes('Permission denied') || message.includes('NotAllowedError')) {
@@ -89,14 +95,18 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     
     if (localStream) {
       localStream.getVideoTracks().forEach(track => {
-        localStream.removeTrack(track);
         track.stop();
+        localStream.removeTrack(track);
       });
+      
+      // Create a NEW MediaStream with only audio to trigger UI update
+      const audioOnlyStream = new MediaStream([...localStream.getAudioTracks()]);
+      setLocalStream(audioOnlyStream);
     }
     
     setCameraOn(false);
     setCameraError(null);
-  }, [localStream, setCameraOn]);
+  }, [localStream, setCameraOn, setLocalStream]);
 
   const toggleCamera = useCallback(async () => {
     if (isCameraOn) {
@@ -105,6 +115,22 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       await startCamera();
     }
   }, [isCameraOn, startCamera, stopCamera]);
+
+  const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
+    if (!localStream) return;
+    
+    localStream.getVideoTracks().forEach(vt => {
+      vt.stop();
+      localStream.removeTrack(vt);
+    });
+
+    if (track) {
+      localStream.addTrack(track);
+    }
+    
+    // Create new stream to force re-render
+    setLocalStream(new MediaStream(localStream.getTracks()));
+  }, [localStream, setLocalStream]);
 
   // ─── Screen Share ─────────────────────────────────────────────
 
@@ -163,6 +189,7 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     startCamera,
     stopCamera,
     toggleCamera,
+    replaceVideoTrack,
     startScreenShare,
     stopScreenShare,
     toggleScreenShare,
