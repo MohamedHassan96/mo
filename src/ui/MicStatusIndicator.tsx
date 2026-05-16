@@ -14,9 +14,9 @@ export default function MicStatusIndicator({
   const getStatusColor = () => {
     switch (processingStatus.stage) {
       case 'listening': return 'text-green-500';
-      case 'transcribing': return 'text-blue-500';
+      case 'transcribing': return 'text-sky-600';
       case 'translating': return 'text-purple-500';
-      case 'synthesizing': return 'text-blue-500';
+      case 'synthesizing': return 'text-sky-600';
       case 'playing': return 'text-cyan-500';
       case 'error': return 'text-red-500';
       default: return 'text-gray-400';

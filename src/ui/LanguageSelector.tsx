@@ -29,7 +29,7 @@ export default function LanguageSelector({
           disabled={disabled}
           className="w-full pl-11 pr-5 py-3 rounded-[20px] border border-gray-200 dark:border-[#1E1E1E] 
                      bg-gray-50 dark:bg-[#080808] text-gray-950 dark:text-white
-                     focus:outline-none focus:ring-1 focus:ring-[#0070FF] focus:border-[#0070FF]
+                     focus:outline-none focus:ring-1 focus:ring-[#006494] focus:border-[#006494]
                      disabled:opacity-50 disabled:cursor-not-allowed
                      appearance-none cursor-pointer text-sm font-bold
                      transition-colors"

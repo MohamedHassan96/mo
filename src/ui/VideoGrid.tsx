@@ -44,9 +44,9 @@ function VideoTile({
         <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-[#080808]">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#1E1E1E] shadow-lg dark:shadow-[0_0_30px_rgba(255,77,0,0.2)] flex items-center justify-center">
             {isScreenShare ? (
-                <MonitorUp className="w-8 h-8 sm:w-10 sm:h-10 text-[#0070FF]" />
+                <MonitorUp className="w-8 h-8 sm:w-10 sm:h-10 text-[#006494]" />
             ) : (
-              <span className="text-2xl sm:text-3xl font-bold text-[#0070FF]">
+              <span className="text-2xl sm:text-3xl font-bold text-[#006494]">
                 {name.charAt(0).toUpperCase()}
               </span>
             )}
@@ -63,16 +63,16 @@ function VideoTile({
           {isMuted ? (
             <MicOff className="w-4 h-4 text-red-500" />
           ) : (
-            <Mic className="w-4 h-4 text-[#0070FF]" />
+            <Mic className="w-4 h-4 text-[#006494]" />
           )}
         </div>
       </div>
 
       {isScreenShare && (
         <>
-          <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-blue-50 dark:bg-[#0070FF]/20 backdrop-blur-md border border-blue-200 dark:border-[#0070FF]/50 flex items-center gap-2">
-            <MonitorUp className="w-4 h-4 text-[#0070FF]" />
-            <span className="text-sm font-bold text-[#0070FF]">{t.videoGridScreenShare}</span>
+          <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-blue-50 dark:bg-[#006494]/20 backdrop-blur-md border border-blue-200 dark:border-[#006494]/50 flex items-center gap-2">
+            <MonitorUp className="w-4 h-4 text-[#006494]" />
+            <span className="text-sm font-bold text-[#006494]">{t.videoGridScreenShare}</span>
           </div>
           <button
             onClick={async () => {
@@ -84,7 +84,7 @@ function VideoTile({
                 }
               }
             }}
-            className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center bg-white/80 dark:bg-[#080808]/80 hover:bg-gray-100 dark:hover:bg-[#121212] backdrop-blur-md rounded-full border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 dark:hover:border-[#0070FF]/50 text-gray-600 dark:text-[#A3A3A3] hover:text-[#0070FF] dark:hover:text-[#0070FF] transition-all hover:scale-105 shadow-lg dark:shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+            className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center bg-white/80 dark:bg-[#080808]/80 hover:bg-gray-100 dark:hover:bg-[#121212] backdrop-blur-md rounded-full border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 dark:hover:border-[#006494]/50 text-gray-600 dark:text-[#A3A3A3] hover:text-[#006494] dark:hover:text-[#006494] transition-all hover:scale-105 shadow-lg dark:shadow-[0_0_20px_rgba(0,0,0,0.5)]"
             title={t.videoGridExpand}
           >
             <Maximize2 className="w-5 h-5" />

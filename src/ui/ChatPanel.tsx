@@ -118,7 +118,7 @@ export default function ChatPanel({
           onClick={() => setAutoTranslate(!autoTranslate)}
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
             autoTranslate
-              ? 'bg-indigo-100 dark:bg-blue-500/20 text-blue-700 dark:text-indigo-300'
+              ? 'bg-indigo-100 dark:bg-sky-600/20 text-sky-800 dark:text-indigo-300'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
           }`}
         >
@@ -151,7 +151,7 @@ export default function ChatPanel({
                 {/* اسم المرسل */}
                 <span className={`text-xs mb-1 font-medium ${
                   msg.senderRole === 'host'
-                    ? 'text-blue-600 dark:text-indigo-400'
+                    ? 'text-sky-700 dark:text-indigo-400'
                     : 'text-emerald-600 dark:text-emerald-400'
                 }`}>
                   {msg.senderName}
@@ -161,7 +161,7 @@ export default function ChatPanel({
                 <div
                   className={`max-w-[85%] rounded-2xl overflow-hidden ${
                     isMe
-                      ? 'bg-blue-500 text-white rounded-br-md'
+                      ? 'bg-sky-600 text-white rounded-br-md'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-md'
                   }`}
                 >
@@ -176,7 +176,7 @@ export default function ChatPanel({
                   {hasTranslation && (
                     <div className={`px-4 py-2.5 border-t ${
                       isMe 
-                        ? 'bg-blue-600/50 border-indigo-400/30' 
+                        ? 'bg-sky-700/50 border-indigo-400/30' 
                         : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-700'
                     }`}>
                       <p className={`text-xs mb-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
@@ -202,7 +202,7 @@ export default function ChatPanel({
 
         {isTranslating && (
           <div className="flex items-center justify-center gap-2 py-2">
-            <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+            <Loader2 className="w-4 h-4 text-sky-600 animate-spin" />
             <span className="text-xs text-gray-400">{t.chatTranslating}</span>
           </div>
         )}
@@ -221,13 +221,13 @@ export default function ChatPanel({
             dir="auto"
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 
                        bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm
-                       focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                       focus:ring-2 focus:ring-sky-600 focus:border-transparent
                        placeholder:text-gray-400 disabled:opacity-50"
           />
           <button
             onClick={handleSend}
             disabled={!message.trim() || isTranslating}
-            className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 
+            className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:bg-gray-300 
                        dark:disabled:bg-gray-700 text-white rounded-xl transition-colors
                        disabled:cursor-not-allowed"
           >

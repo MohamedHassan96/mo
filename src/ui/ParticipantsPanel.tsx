@@ -14,7 +14,7 @@ export default function ParticipantsPanel() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-[#1E1E1E] flex items-center justify-between">
         <h3 className="font-bold text-gray-900 dark:text-white">{t.participantsTitle}</h3>
-        <span className="text-xs bg-[#0070FF]/10 text-[#0070FF] font-bold px-2.5 py-1 rounded-full">
+        <span className="text-xs bg-[#006494]/10 text-[#006494] font-bold px-2.5 py-1 rounded-full">
           {participants.length}
         </span>
       </div>
@@ -35,15 +35,15 @@ export default function ParticipantsPanel() {
                 key={participant.id}
                 className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
                   isMe
-                    ? 'bg-[#0070FF]/5 border-[#0070FF]/20 dark:bg-[#0070FF]/10'
+                    ? 'bg-[#006494]/5 border-[#006494]/20 dark:bg-[#006494]/10'
                     : 'bg-gray-50 dark:bg-[#1A1A1A] border-gray-200 dark:border-[#2A2A2A]'
                 }`}
               >
                 {/* Avatar */}
                 <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${
                   isHost
-                    ? 'bg-gradient-to-br from-sky-400 to-blue-500'
-                    : 'bg-gradient-to-br from-blue-500 to-violet-600'
+                    ? 'bg-gradient-to-br from-sky-400 to-sky-600'
+                    : 'bg-gradient-to-br from-sky-600 to-violet-600'
                 }`}>
                   <span className="text-lg font-extrabold text-white">
                     {(participant.name || '?').charAt(0).toUpperCase()}
@@ -57,7 +57,7 @@ export default function ParticipantsPanel() {
                       {participant.name || t.participantUnknown}
                     </span>
                     {isMe && (
-                      <span className="text-[10px] bg-[#0070FF] text-white font-bold px-1.5 py-0.5 rounded-md shrink-0">
+                      <span className="text-[10px] bg-[#006494] text-white font-bold px-1.5 py-0.5 rounded-md shrink-0">
                         {t.participantYou}
                       </span>
                     )}
@@ -72,7 +72,7 @@ export default function ParticipantsPanel() {
                     ) : (
                       <div className="flex items-center gap-1">
                         <User className="w-3 h-3 text-indigo-400" />
-                        <span className="text-[11px] font-bold text-blue-600 dark:text-indigo-400">{t.participantGuest}</span>
+                        <span className="text-[11px] font-bold text-sky-700 dark:text-indigo-400">{t.participantGuest}</span>
                       </div>
                     )}
                     <span className="text-[10px] text-gray-400">·</span>

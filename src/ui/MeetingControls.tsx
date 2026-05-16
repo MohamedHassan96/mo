@@ -97,13 +97,13 @@ export default function MeetingControls({
           <button
             onClick={handleCopyLink}
             className="h-12 sm:h-auto w-12 sm:w-auto flex items-center justify-center sm:justify-start gap-2 sm:px-4 sm:py-2 bg-gray-50 dark:bg-[#1A1A1A] hover:bg-gray-100 dark:hover:bg-[#2A2A2A] 
-                       text-gray-600 dark:text-[#A3A3A3] hover:text-gray-900 dark:hover:text-white rounded-full text-sm font-bold border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 transition-all"
+                       text-gray-600 dark:text-[#A3A3A3] hover:text-gray-900 dark:hover:text-white rounded-full text-sm font-bold border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 transition-all"
             title="نسخ كود الدعوة"
           >
             {copied ? (
               <Check className="w-4 h-4 text-green-500" />
             ) : (
-              <Copy className="w-4 h-4 text-[#0070FF]" />
+              <Copy className="w-4 h-4 text-[#006494]" />
             )}
             <span className="hidden sm:inline font-mono">{roomId}</span>
           </button>
@@ -114,7 +114,7 @@ export default function MeetingControls({
           {/* Mic */}
           <button
             onClick={onToggleMic}
-            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 ${isMicOn
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${isMicOn
                 ? 'bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-700 dark:text-white'
                 : 'bg-red-500 hover:bg-red-600 text-white border-none shadow-[0_0_20px_rgba(239,68,68,0.4)]'
               }`}
@@ -126,7 +126,7 @@ export default function MeetingControls({
           {/* Camera */}
           <button
             onClick={onToggleCamera}
-            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 ${isCameraOn
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${isCameraOn
                 ? 'bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-700 dark:text-white'
                 : 'bg-red-500 hover:bg-red-600 text-white border-none shadow-[0_0_20px_rgba(239,68,68,0.4)]'
               }`}
@@ -138,8 +138,8 @@ export default function MeetingControls({
           {/* Screen Share */}
           <button
             onClick={handleToggleScreenShare}
-            className={`hidden sm:flex w-14 h-14 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 ${isScreenSharing
-                ? 'bg-[#0070FF] hover:bg-[#005edb] text-white border-none shadow-[0_0_20px_rgba(255,77,0,0.4)]'
+            className={`hidden sm:flex w-14 h-14 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${isScreenSharing
+                ? 'bg-[#006494] hover:bg-[#004a70] text-white border-none shadow-[0_0_20px_rgba(255,77,0,0.4)]'
                 : 'bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-700 dark:text-white'
               }`}
             title={isScreenSharing ? 'إيقاف المشاركة' : 'مشاركة الشاشة'}
@@ -163,7 +163,7 @@ export default function MeetingControls({
           {/* Audio playback */}
           <button
             onClick={() => setAudioPlaybackEnabled(!audioPlaybackEnabled)}
-            className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 ${audioPlaybackEnabled
+            className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${audioPlaybackEnabled
                 ? 'bg-green-50 dark:bg-[#1E1E1E] hover:bg-green-100 dark:hover:bg-[#2A2A2A] text-green-600 dark:text-green-500'
                 : 'bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-[#1A1A1A] text-gray-400 dark:text-[#A3A3A3]'
               }`}
@@ -175,8 +175,8 @@ export default function MeetingControls({
           {/* Chat toggle */}
           <button
             onClick={toggleSidePanel}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 ${sidePanelOpen
-                ? 'bg-[#0070FF] text-white shadow-[0_0_20px_rgba(255,77,0,0.3)] border-none'
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 ${sidePanelOpen
+                ? 'bg-[#006494] text-white shadow-[0_0_20px_rgba(255,77,0,0.3)] border-none'
                 : 'bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-500 dark:text-[#A3A3A3] hover:text-gray-900 dark:hover:text-white'
               }`}
             title="فتح/إغلاق الدردشة"
@@ -188,7 +188,7 @@ export default function MeetingControls({
           <div className="relative">
             <button
               onClick={() => setShowMore(!showMore)}
-              className="w-12 h-12 rounded-full bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-500 dark:text-[#A3A3A3] hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-[#1E1E1E] hover:border-[#0070FF]/50 
+              className="w-12 h-12 rounded-full bg-white dark:bg-[#1E1E1E] hover:bg-gray-50 dark:hover:bg-[#2A2A2A] text-gray-500 dark:text-[#A3A3A3] hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-[#1E1E1E] hover:border-[#006494]/50 
                          flex items-center justify-center transition-all"
               title="المزيد"
             >
@@ -204,7 +204,7 @@ export default function MeetingControls({
                   }}
                   className="sm:hidden w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-gray-700 dark:text-[#D9D9D9] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors"
                 >
-                  {audioPlaybackEnabled ? <Volume2 className="w-5 h-5 text-green-500" /> : <VolumeX className="w-5 h-5 text-[#0070FF]" />}
+                  {audioPlaybackEnabled ? <Volume2 className="w-5 h-5 text-green-500" /> : <VolumeX className="w-5 h-5 text-[#006494]" />}
                   {audioPlaybackEnabled ? 'كتم صوت الترجمة' : 'تشغيل صوت الترجمة'}
                 </button>
                 <button
@@ -214,7 +214,7 @@ export default function MeetingControls({
                   }}
                   className="sm:hidden w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-gray-700 dark:text-[#D9D9D9] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors"
                 >
-                  {isScreenSharing ? <MonitorOff className="w-5 h-5 text-[#0070FF]" /> : <MonitorUp className="w-5 h-5 text-[#0070FF]" />}
+                  {isScreenSharing ? <MonitorOff className="w-5 h-5 text-[#006494]" /> : <MonitorUp className="w-5 h-5 text-[#006494]" />}
                   {isScreenSharing ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}
                 </button>
                 <button
@@ -224,7 +224,7 @@ export default function MeetingControls({
                   }}
                   className="w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-gray-700 dark:text-[#D9D9D9] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors"
                 >
-                  <Settings className="w-5 h-5 text-[#0070FF]" />
+                  <Settings className="w-5 h-5 text-[#006494]" />
                   الإعدادات
                 </button>
               </div>
