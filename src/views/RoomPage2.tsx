@@ -45,7 +45,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const myPeerId = useMemo(() => role === 'host' ? normalizedRoomId : `guest-${uuid().slice(0, 8)}`, [role, normalizedRoomId]);
 
   const [enableCamera, setEnableCamera] = useState(false);
-  const [enableMic, setEnableMic] = useState(true);
+  const [enableMic, setEnableMic] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [customRoomId, setCustomRoomId] = useState(roomId);
 
@@ -86,7 +86,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     setRemoteStream(stream);
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = stream;
-      remoteAudioRef.current.muted = false;
+      // PURE TRANSLATION MODE: Keep raw remote audio muted so users only hear the AI translation
+      remoteAudioRef.current.muted = true; 
       remoteAudioRef.current.play().catch(() => { });
     }
   }, [setRemoteStream]);
