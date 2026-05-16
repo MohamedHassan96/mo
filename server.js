@@ -142,7 +142,7 @@ async function generateTTS(text, language) {
   if (!ELEVENLABS_API_KEY) {
     throw new Error('ELEVENLABS_API_KEY is not configured');
   }
-  const voiceId = language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL';
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || (language === 'ar' ? 'cjVigY5qzO86Huf0OWal' : 'EXAVITQu4vr4xnSDxMaL');
   
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {

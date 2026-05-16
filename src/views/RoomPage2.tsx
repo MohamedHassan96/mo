@@ -78,7 +78,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     setRemoteStream(stream);
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = stream;
-      remoteAudioRef.current.muted = false; // الصوت الأصلي للطرف الآخر
+      remoteAudioRef.current.muted = true; // كتم الصوت الأصلي لسماع الترجمة فقط (برد بشري)
       remoteAudioRef.current.play().catch(() => { });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
