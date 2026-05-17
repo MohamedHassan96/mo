@@ -4,7 +4,6 @@ import fs from "fs";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { viteSingleFile } from "vite-plugin-singlefile";
 import { Server } from "socket.io";
 
 // ─── Persistent state (survives Vite HMR) ─────────────────────────────────────
@@ -328,7 +327,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    viteSingleFile(),
     {
       name: 'socket-io',
       configureServer(server) {
@@ -347,4 +345,8 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
   },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  }
 });

@@ -36,6 +36,23 @@ function parseHash(): RouteState {
 export default function App() {
   const { theme } = useConfigStore();
   const [route, setRoute] = useState<RouteState>(parseHash);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  // Global error handler
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error:', event.error);
+      setLastError(event.error?.message || 'Unknown error');
+    };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  // Diagnostic logs
+  useEffect(() => {
+    console.log('[App] Current Route:', route);
+    console.log('[App] window.location.hash:', window.location.hash);
+  }, [route]);
 
   // Apply theme on mount
   useEffect(() => {
@@ -114,6 +131,13 @@ export default function App() {
           role={route.role ?? 'guest'}
           onLeave={handleLeaveRoom}
         />
+      )}
+
+      {/* Debug Info Overlay (Only visible in dev or if error exists) */}
+      {lastError && (
+        <div className="fixed bottom-0 left-0 right-0 bg-red-600 text-white p-2 text-[10px] z-[9999] font-mono">
+          ERROR: {lastError}
+        </div>
       )}
     </div>
   );

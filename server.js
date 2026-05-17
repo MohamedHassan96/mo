@@ -32,7 +32,13 @@ const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); 
+app.use(express.json({ limit: '10mb' }));
+
+// Logging middleware
+app.use((req, _res, next) => {
+  console.log(`[TalkBridge] ${req.method} ${req.url}`);
+  next();
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({
