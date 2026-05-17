@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 import { useRoomStore } from '@/state/roomStore';
 import { useConfigStore } from '@/state/configStore';
 import { useVoiceActivityRecorder } from './useVoiceActivityRecorder';
-import { transcribeAudioGemini } from '@/services/gemini';
+import { transcribeAudio } from '@/services/stt';
 
 interface UseGeminiSTTOptions {
   language: string;
@@ -13,7 +13,7 @@ interface UseGeminiSTTOptions {
 export function useGeminiSTT(options: UseGeminiSTTOptions) {
   const { language, onResult, onError } = options;
   const { localStream } = useRoomStore();
-  const { geminiApiKey } = useConfigStore(state => state.config);
+  const { geminiApiKey, groqApiKey } = useConfigStore(state => state.config);
   
   const [isListening, setIsListening] = useState(false);
   
@@ -21,10 +21,10 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
   useEffect(() => { onResultRef.current = onResult; }, [onResult]);
 
   const handleSpeechEnd = useCallback(async (audioBase64: string) => {
-    if (!audioBase64 || !geminiApiKey) return;
+    const activeKey = geminiApiKey || groqApiKey;
+    if (!audioBase64 || !activeKey) return;
 
     try {
-      // Convert base64 to Blob
       const byteCharacters = atob(audioBase64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -33,19 +33,15 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: 'audio/webm' });
 
-      const text = await transcribeAudioGemini(blob, geminiApiKey, language);
-      if (text) {
-        onResultRef.current(text, true);
-      } else {
-        console.warn('[Gemini STT] No text returned');
-        // We don't necessarily want to trigger fallback on a single silence, 
-        // but if the API itself failed, transcribeAudioGemini would throw.
+      const result = await transcribeAudio(blob, activeKey, language);
+      if (result && result.text) {
+        onResultRef.current(result.text, true);
       }
     } catch (err) {
-      console.error('[Gemini STT] Transcription failed:', err);
+      console.error('[STT] Transcription failed:', err);
       onError?.(err instanceof Error ? err.message : String(err));
     }
-  }, [geminiApiKey, language, onError]);
+  }, [geminiApiKey, groqApiKey, language, onError]);
 
   const {
     startListening: startVAD,
@@ -55,7 +51,7 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
     stream: localStream,
     onSpeechEnd: handleSpeechEnd,
     silenceDelay: 1000,
-    minDecibels: -60, // Increased sensitivity
+    minDecibels: -60,
   });
 
   const startListening = useCallback(() => {

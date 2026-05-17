@@ -19,8 +19,8 @@ interface ConfigState {
 // الإعدادات الافتراضية - كل المفاتيح جاهزة
 const DEFAULT_CONFIG: AppConfig = {
   groqApiKey: '',
-  geminiApiKey: 'AIzaSyDXCXhA8x1LoGIN3WeXjb1QjSQ8MMISvxo',
-  ttsProvider: 'browser' as TTSProvider,
+  geminiApiKey: '',
+  ttsProvider: 'elevenlabs' as TTSProvider,
   elevenLabsApiKey: '',
   elevenLabsVoiceId: '',
   xttsUrl: 'http://localhost:8080',
