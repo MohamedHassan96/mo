@@ -48,7 +48,14 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.use(express.static(path.join(__dirname, 'dist')));
+const distPath = path.join(__dirname, 'dist');
+const indexPath = path.join(distPath, 'index.html');
+
+console.log(`[TalkBridge] Server directory: ${__dirname}`);
+console.log(`[TalkBridge] Looking for dist at: ${distPath}`);
+console.log(`[TalkBridge] Index.html exists: ${fs.existsSync(indexPath)}`);
+
+app.use(express.static(distPath));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -215,9 +222,20 @@ io.on('connection', (socket) => {
 });
 
 app.get('*', (req, res) => {
-  const distPath = path.join(__dirname, 'dist', 'index.html');
-  if (fs.existsSync(distPath)) res.sendFile(distPath);
-  else res.status(404).send('Build not found. Run npm run build.');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    console.error(`[TalkBridge] ERROR: index.html not found at ${indexPath}`);
+    res.status(404).send(`
+      <h1>Build not found</h1>
+      <p>The server is running but the frontend build is missing.</p>
+      <p>Expected path: <code>${indexPath}</code></p>
+      <p>Current directory: <code>${__dirname}</code></p>
+      <p>Files in current directory: <code>${fs.readdirSync(__dirname).join(', ')}</code></p>
+      <hr/>
+      <p>Please check your Railway build logs to see if <code>npm run build</code> succeeded.</p>
+    `);
+  }
 });
 
 const PORT = process.env.PORT || 3001;
