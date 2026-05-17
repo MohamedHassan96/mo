@@ -75,7 +75,8 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
         ) : (
           uniqueTranscripts.map((entry) => {
             const isMe = entry.speakerId === myId;
-            const hasTranslation = !isMe && entry.translatedText && entry.translatedText !== entry.originalText;
+            // For sender: no translation. For receiver: show both if translation exists.
+            const showTranslation = !isMe && entry.translatedText && entry.translatedText !== entry.originalText;
 
             return (
               <div key={entry.id} className={`flex flex-col gap-1.5 ${isMe ? 'items-end' : 'items-start'}`}>
@@ -96,16 +97,16 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
                     </p>
                   </div>
 
-                  {hasTranslation && (
-                    <div className="border-t border-black/5 dark:border-white/5">
-                      <div className={`flex items-center gap-1.5 px-4 py-1.5 ${isMe ? 'bg-black/5' : 'bg-black/5 dark:bg-white/5'}`}>
-                        <ArrowDown className={`w-3 h-3 ${isMe ? 'text-brand-dark/30' : 'text-brand-muted/30 dark:text-white/20'}`} />
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${isMe ? 'text-brand-dark/30' : 'text-brand-muted/30 dark:text-white/20'}`}>
+                  {showTranslation && (
+                    <div className="border-t border-black/5 dark:border-white/5 bg-brand-neon/5">
+                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-black/5 dark:bg-white/5">
+                        <ArrowDown className="w-3 h-3 text-brand-neon" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-brand-neon">
                           {getLanguageName(entry.translatedLanguage)}
                         </span>
                       </div>
                       <div className="px-4 py-3">
-                        <p className={`text-sm leading-relaxed font-semibold ${isMe ? 'text-brand-dark/90' : 'text-brand-muted dark:text-brand-neon'}`} dir={getLanguageDirection(entry.translatedLanguage)}>
+                        <p className="text-sm leading-relaxed font-black text-brand-dark dark:text-white" dir={getLanguageDirection(entry.translatedLanguage)}>
                           {entry.translatedText}
                         </p>
                       </div>
