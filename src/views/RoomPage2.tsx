@@ -157,24 +157,68 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
     useRoomStore.getState().addTranscript(transcript);
   }, []);
 
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const unlockAudio = useCallback(() => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.play().then(() => {
+        ttsAudioRef.current?.pause();
+        setAudioUnlocked(true);
+        addLog('تم تفعيل الصوت بنجاح');
+      }).catch(err => {
+        console.warn('Audio unlock failed', err);
+      });
+    }
+  }, []);
+
   const handleTranslatedAudio = useCallback((data: any) => {
     if (!data.translatedText?.trim()) return;
+    console.log(`[RoomPage] Received audio for: ${data.translatedText}`);
+    
     useRoomStore.getState().updateTranscript(data.originalId, { 
       translatedText: data.translatedText, 
       translatedLanguage: data.translatedLanguage 
     });
-    if (!data.audioBase64) return;
+
+    if (!data.audioBase64) {
+      console.log('[RoomPage] No audio base64, skipping playback');
+      return;
+    }
+
     setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus?.(data.speakerName) || `🔊 ${data.speakerName}...` });
+    
     const afterPlay = () => {
-      if (shouldListenRef.current) { startListeningRef.current?.(); setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); }
-      else setProcessingStatus({ stage: 'idle', message: '' });
+      console.log('[RoomPage] Audio playback ended');
+      if (shouldListenRef.current) { 
+        startListeningRef.current?.(); 
+        setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); 
+      } else {
+        setProcessingStatus({ stage: 'idle', message: '' }); 
+      }
     };
+
     const audio = ttsAudioRef.current;
     if (audio) {
-      if (isListeningRef.current) stopListeningRef.current?.();
-      audio.pause(); audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
-      audio.onended = afterPlay; audio.onerror = afterPlay;
-      audio.play().catch(err => { console.warn('[TTS] Playback blocked', err); afterPlay(); });
+      try {
+        if (isListeningRef.current) stopListeningRef.current?.();
+        audio.pause(); 
+        audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
+        audio.onended = afterPlay; 
+        audio.onerror = (e) => {
+          console.error('[RoomPage] Audio element error:', e);
+          afterPlay();
+        };
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => { 
+            console.warn('[TTS] Playback blocked or failed', err); 
+            setAudioUnlocked(false);
+            afterPlay(); 
+          });
+        }
+      } catch (err) {
+        console.error('[RoomPage] Playback logic error:', err);
+        afterPlay();
+      }
     }
   }, [setProcessingStatus, t]);
 
@@ -376,6 +420,20 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
       <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
       {showInviteModal && renderInviteModal()}
+
+      {/* Mobile Audio Unlock Overlay */}
+      {!audioUnlocked && phase === 'active' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+          <button 
+            onClick={unlockAudio}
+            className="bg-brand-neon text-brand-dark px-8 py-4 rounded-[24px] font-black text-lg shadow-2xl flex items-center gap-3 animate-bounce"
+          >
+            <Volume2 className="w-6 h-6" />
+            تفعيل صوت الترجمة
+          </button>
+        </div>
+      )}
+
       <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-gray-200 dark:border-white/10 px-4 py-4 flex flex-row items-center justify-between z-40 relative">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/10">
