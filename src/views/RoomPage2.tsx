@@ -13,32 +13,24 @@ import LanguageSelector from '@/ui/LanguageSelector';
 import VideoGrid from '@/ui/VideoGrid';
 import SidePanel from '@/ui/SidePanel';
 import MeetingControls from '@/ui/MeetingControls';
-import { playJoinSound, playMessageSound } from '@/utils/sounds';
 import {
   Mic, MicOff, Video, VideoOff, Copy, Check, UserPlus, Radio, ArrowRight,
-  Link2, Share2, Users, X, Zap, Sparkles, Activity, AlertTriangle, Volume2
+  X, Zap, Activity, AlertTriangle, Volume2
 } from 'lucide-react';
 import type { ParticipantRole, ChatMessage, Participant, TranscriptEntry } from '@/types';
 
-// ─── Error Boundary Component ─────────────────────────────────────
+// ─── Error Boundary ───────────────────────────────────────────────
 class RoomErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+  constructor(props: { children: ReactNode }) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error('[RoomBoundary] CRASH:', error, errorInfo); }
   render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-6 text-center">
           <AlertTriangle className="w-16 h-16 text-red-600 mb-4" />
-          <h1 className="text-2xl font-bold text-red-900 mb-2">حدث خطأ في تحميل الغرفة</h1>
-          <div className="bg-white p-4 rounded-xl border border-red-200 text-left mb-6 max-w-2xl overflow-auto">
-            <p className="text-red-700 font-bold mb-2">Error: {this.state.error?.message}</p>
-            <pre className="text-[10px] text-gray-500 font-mono">{this.state.error?.stack}</pre>
-          </div>
-          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">إعادة المحاولة</button>
+          <h1 className="text-2xl font-bold text-red-900 mb-2">Error Loading Room</h1>
+          <pre className="text-xs text-red-700 mb-4 max-w-md bg-white p-4 rounded-xl border border-red-200">{this.state.error?.message}</pre>
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold shadow-lg">Retry</button>
         </div>
       );
     }
@@ -46,17 +38,10 @@ class RoomErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
   }
 }
 
-interface RoomPageProps {
-  roomId: string;
-  role: ParticipantRole;
-  onLeave: () => void;
-}
-
+interface RoomPageProps { roomId: string; role: ParticipantRole; onLeave: () => void; }
 type RoomPhase = 'setup' | 'connecting' | 'active';
 
 function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
-  console.log(`[RoomPage] Initializing for room: ${roomId}, role: ${role}`);
-  
   const { uiLanguage } = useConfigStore();
   const t = getTranslations(uiLanguage);
   const isRtl = ['ar', 'fa', 'ur'].includes(uiLanguage);
@@ -75,39 +60,8 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [customRoomId, setCustomRoomId] = useState(roomId);
   
-  const [connLogs, setConnLogs] = useState<string[]>(['بانتظار البدء...']);
-  const addLog = (msg: string) => {
-    console.log(`[RoomLog] ${msg}`);
-    setConnLogs(prev => [...prev.slice(-3), msg]);
-  };
-
-  const [fileTransfers, setFileTransfers] = useState<Record<string, any>>({});
-  const [systemHealth, setSystemHealth] = useState<{ ok: boolean, keys: any }>({ ok: false, keys: null });
-
-  useEffect(() => {
-    console.log('[RoomPage] Mount');
-    const checkHealth = async () => {
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok) setSystemHealth(await res.json());
-        else addLog('فشل فحص النظام');
-      } catch (e) { console.error('Health check failed', e); }
-    };
-    checkHealth();
-    return () => console.log('[RoomPage] Unmount');
-  }, []);
-
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
-
-  const myLanguageRef = useRef(myLanguage);
-  useEffect(() => { myLanguageRef.current = myLanguage; }, [myLanguage]);
-
-  const participantIdRef = useRef(participantId);
-  useEffect(() => { participantIdRef.current = participantId; }, [participantId]);
-
   const isListeningRef = useRef(false);
   const stopListeningRef = useRef<(() => void) | null>(null);
   const startListeningRef = useRef<(() => void) | null>(null);
@@ -115,371 +69,131 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
 
   const { processRecognizedText } = useRealtimeTranslation();
   const {
-    processingStatus, sidePanelOpen, participants,
-    isMicOn, isCameraOn: isCameraOnStore,
-    localStream: storeLocalStream,
+    participants, isMicOn, isCameraOn: isCameraOnStore, localStream,
     setMicOn, setCameraOn, addParticipant, updateParticipant, removeParticipant,
-    addChatMessage, setMyId: setStoreMyId,
-    setProcessingStatus, createRoom, leaveRoom, setRemoteStream
+    addChatMessage, setMyId, setProcessingStatus, createRoom, leaveRoom, setRemoteStream
   } = useRoomStore();
 
-  const {
-    startCamera, stopCamera, startAudio,
-  } = useMediaDevices();
+  const { startCamera, stopCamera, startAudio } = useMediaDevices();
 
-  useEffect(() => {
-    localStreamRef.current = storeLocalStream;
-    if (localVideoRef.current) localVideoRef.current.srcObject = storeLocalStream;
-  }, [storeLocalStream]);
-
-  const handleRemoteStream = useCallback((stream: MediaStream, _peerId?: string) => {
-    setRemoteStream(stream);
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = stream;
-      remoteAudioRef.current.muted = true; 
-      remoteAudioRef.current.play().catch(() => { });
-    }
-  }, [setRemoteStream]);
-
-  const handleChatMessage = useCallback((message: ChatMessage) => {
-    addChatMessage(message);
-    if (message.senderId !== participantId) playMessageSound();
-  }, [addChatMessage, participantId]);
-
-  const handleConnectionChange = useCallback((connected: boolean) => {
-    if (connected) {
-      addLog('تم الاتصال بالطرف الآخر');
-      setPhase(prev => prev === 'connecting' ? 'active' : prev);
-    }
-  }, []);
-
-  const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
-    useRoomStore.getState().addTranscript(transcript);
-  }, []);
-
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  // ─── SILENT AUDIO UNLOCK ───────────────────────────────────────
   const unlockAudio = useCallback(() => {
     if (ttsAudioRef.current) {
-      ttsAudioRef.current.play().then(() => {
-        ttsAudioRef.current?.pause();
-        setAudioUnlocked(true);
-        addLog('تم تفعيل الصوت بنجاح');
-      }).catch(err => {
-        console.warn('Audio unlock failed', err);
-      });
+      ttsAudioRef.current.play().then(() => { ttsAudioRef.current?.pause(); console.log('🔊 Audio Unlocked'); }).catch(() => {});
     }
   }, []);
 
+  useEffect(() => {
+    const handleInteraction = () => { unlockAudio(); window.removeEventListener('click', handleInteraction); window.removeEventListener('touchstart', handleInteraction); };
+    window.addEventListener('click', handleInteraction); window.addEventListener('touchstart', handleInteraction);
+    return () => { window.removeEventListener('click', handleInteraction); window.removeEventListener('touchstart', handleInteraction); };
+  }, [unlockAudio]);
+
+  useEffect(() => { if (localVideoRef.current) localVideoRef.current.srcObject = localStream; }, [localStream]);
+
   const handleTranslatedAudio = useCallback((data: any) => {
-    if (!data.translatedText?.trim()) return;
-    console.log(`[RoomPage] Received audio for: ${data.translatedText}`);
-    
-    useRoomStore.getState().updateTranscript(data.originalId, { 
-      translatedText: data.translatedText, 
-      translatedLanguage: data.translatedLanguage 
-    });
-
-    if (!data.audioBase64) {
-      console.log('[RoomPage] No audio base64, skipping playback');
-      return;
-    }
-
-    setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus?.(data.speakerName) || `🔊 ${data.speakerName}...` });
-    
+    useRoomStore.getState().updateTranscript(data.originalId, { translatedText: data.translatedText, translatedLanguage: data.translatedLanguage });
+    if (!data.audioBase64) return;
+    setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus?.(data.speakerName) });
     const afterPlay = () => {
-      console.log('[RoomPage] Audio playback ended');
-      if (shouldListenRef.current) { 
-        startListeningRef.current?.(); 
-        setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); 
-      } else {
-        setProcessingStatus({ stage: 'idle', message: '' }); 
-      }
+      if (shouldListenRef.current) { startListeningRef.current?.(); setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); }
+      else setProcessingStatus({ stage: 'idle', message: '' });
     };
-
     const audio = ttsAudioRef.current;
     if (audio) {
-      try {
-        if (isListeningRef.current) stopListeningRef.current?.();
-        audio.pause(); 
-        audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
-        audio.onended = afterPlay; 
-        audio.onerror = (e) => {
-          console.error('[RoomPage] Audio element error:', e);
-          afterPlay();
-        };
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(err => { 
-            console.warn('[TTS] Playback blocked or failed', err); 
-            setAudioUnlocked(false);
-            afterPlay(); 
-          });
-        }
-      } catch (err) {
-        console.error('[RoomPage] Playback logic error:', err);
-        afterPlay();
-      }
+      if (isListeningRef.current) stopListeningRef.current?.();
+      audio.src = `data:audio/mp3;base64,${data.audioBase64}`;
+      audio.onended = afterPlay; audio.onerror = afterPlay;
+      audio.play().catch(afterPlay);
     }
   }, [setProcessingStatus, t]);
 
-  const {
-    sendChatMessage: socketSendChat, sendTranscript: socketSendTranscript,
-    updateParticipant: socketUpdateParticipant, updateRoomConfig: socketUpdateRoomConfig,
-    disconnect: socketDisconnect
-  } = useSocketRoom({
+  const { sendChatMessage, sendTranscript, disconnect: socketDisconnect } = useSocketRoom({
     roomId: normalizedRoomId,
-    participant: {
-      id: participantIdRef.current, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder),
-      role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera,
-      isScreenSharing: false, isConnected: true,
-    },
+    participant: { id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera, isScreenSharing: false, isConnected: true },
     enabled: phase !== 'setup',
-    onChatMessage: handleChatMessage, onTranscriptReceived: handleTranscriptReceived, onTranslatedAudio: handleTranslatedAudio
+    onChatMessage: (m) => addChatMessage(m), onTranscriptReceived: (t) => useRoomStore.getState().addTranscript(t), onTranslatedAudio: handleTranslatedAudio
   });
 
-  const {
-    isReady: isPeerReady, connectedPeers, connectToHost, connectToPeer,
-    myPeerId: actualPeerId,
-    replaceVideoTrack: peerReplaceVideoTrack, disconnect: peerDisconnect,
-    sendData: peerSendData, sendFile: peerSendFile
-  } = usePeerConnection({
+  const { disconnect: peerDisconnect, replaceVideoTrack } = usePeerConnection({
     roomId: normalizedRoomId, isHost: role === 'host', myId: myPeerId, hostId: normalizedRoomId,
     enabled: phase !== 'setup',
-    onRemoteStream: handleRemoteStream, onChatMessage: handleChatMessage,
+    onRemoteStream: (s) => setRemoteStream(s), onChatMessage: (m) => addChatMessage(m),
     onParticipantUpdate: (p) => updateParticipant(p.id, p),
-    onConnectionChange: handleConnectionChange, onParticipantLeft: (pid) => removeParticipant(pid),
-    onTranscriptReceived: handleTranscriptReceived,
-    onFileTransferStart: (f) => setFileTransfers(prev => ({ ...prev, [f.id]: { ...f, progress: 0, status: 'receiving' } })),
-    onFileTransferProgress: (id, p) => setFileTransfers(prev => ({ ...prev, [id]: { ...prev[id], progress: p } })),
-    onFileTransferComplete: (id, blob, name) => setFileTransfers(prev => ({ ...prev, [id]: { ...prev[id], progress: 100, status: 'completed', blob } })),
+    onParticipantLeft: (pid) => removeParticipant(pid),
+    onTranscriptReceived: (tr) => useRoomStore.getState().addTranscript(tr),
   });
 
-  useEffect(() => {
-    if (actualPeerId && actualPeerId !== myPeerId) {
-      socketUpdateParticipant({ peerId: actualPeerId });
-      updateParticipant(participantId, { peerId: actualPeerId });
-    }
-  }, [actualPeerId, myPeerId, socketUpdateParticipant, updateParticipant, participantId]);
-
   const handleSpeechResult = useCallback(async (text: string, isFinal: boolean) => {
-    processRecognizedText(text, isFinal, {
-      speakerId: participantId, speakerName: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder),
-      speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage,
-    }, async (entry) => {
-      socketSendTranscript(entry);
-      peerSendData({ type: 'transcript', payload: entry });
+    processRecognizedText(text, isFinal, { speakerId: participantId, speakerName: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage }, (entry) => {
+      sendTranscript(entry);
     });
-  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, socketSendTranscript, peerSendData, t]);
+  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, sendTranscript, t]);
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechToText({ language: myLanguage, onResult: handleSpeechResult });
 
-  const config = useConfigStore((state) => state.config);
-  useEffect(() => {
-    if (phase === 'active' && (config.geminiApiKey || config.elevenLabsApiKey)) {
-      socketUpdateRoomConfig({ geminiApiKey: config.geminiApiKey, elevenLabsApiKey: config.elevenLabsApiKey });
-    }
-  }, [phase, config.geminiApiKey, config.elevenLabsApiKey, socketUpdateRoomConfig]);
+  useEffect(() => { isListeningRef.current = isListening; stopListeningRef.current = stopListening; startListeningRef.current = startListening; }, [isListening, stopListening, startListening]);
 
   useEffect(() => {
-    isListeningRef.current = isListening; stopListeningRef.current = stopListening; startListeningRef.current = startListening;
-  }, [isListening, stopListening, startListening]);
-
-  useEffect(() => {
-    setStoreMyId(participantId); 
-    if (role === 'host') createRoom(normalizedRoomId, participantId);
-    return () => {
-      stopListening(); socketDisconnect(); peerDisconnect();
-      localStreamRef.current?.getTracks().forEach(t => t.stop()); leaveRoom();
-    };
+    setMyId(participantId); if (role === 'host') createRoom(normalizedRoomId, participantId);
+    return () => { stopListening(); socketDisconnect(); peerDisconnect(); leaveRoom(); };
   }, []);
 
-  useEffect(() => {
-    if (phase === 'connecting' && isPeerReady && role === 'guest' && storeLocalStream) {
-      addLog('جاري الربط مع المضيف...');
-      connectToHost(new MediaStream(storeLocalStream.getVideoTracks()));
-    }
-  }, [phase, isPeerReady, role, connectToHost, storeLocalStream]);
-
-  useEffect(() => {
-    if (phase === 'setup' || !isPeerReady || !storeLocalStream) return;
-    participants.map(p => p.peerId).filter((pid): pid is string => Boolean(pid && pid !== myPeerId))
-      .forEach(pid => connectToPeer(pid, new MediaStream(storeLocalStream.getVideoTracks())));
-  }, [phase, isPeerReady, storeLocalStream, participants, myPeerId, connectToPeer]);
-
-  useEffect(() => {
-    if (storeLocalStream) peerReplaceVideoTrack(storeLocalStream.getVideoTracks()[0] || null);
-  }, [storeLocalStream, peerReplaceVideoTrack]);
-
   const handleStartSession = useCallback(async () => {
-    try {
-      console.log('[RoomPage] Starting session...');
-      if (customRoomId && customRoomId !== roomId) { window.location.hash = `/room/${customRoomId}`; return; }
-      addLog('جاري تشغيل محرك الاتصال...');
-      
-      // Auto-unlock audio if possible during user interaction
-      if (ttsAudioRef.current) {
-        ttsAudioRef.current.play().then(() => {
-          ttsAudioRef.current?.pause();
-          setAudioUnlocked(true);
-        }).catch(e => console.warn('Silent audio unlock failed', e));
-      }
-
-      const { config } = useConfigStore.getState();
-      if (config.geminiApiKey || config.elevenLabsApiKey) socketUpdateRoomConfig({ geminiApiKey: config.geminiApiKey, elevenLabsApiKey: config.elevenLabsApiKey });
-      setPhase('connecting');
-      addParticipant({ id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera, isScreenSharing: false, isConnected: true });
-      setMicOn(enableMic); setCameraOn(enableCamera);
-      addLog('جاري الوصول للوسائط...');
-      await startAudio(); if (enableCamera) await startCamera();
-      if (enableMic && isSupported) { setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); shouldListenRef.current = true; startListening(); }
-      addLog('النظام جاهز');
-      setTimeout(() => setPhase('active'), role === 'host' ? 0 : 2000);
-    } catch (err) { console.error('Start failed', err); addLog('خطأ في تشغيل الغرفة'); }
-  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId, socketUpdateRoomConfig]);
+    unlockAudio();
+    if (customRoomId && customRoomId !== roomId) { window.location.hash = `/room/${customRoomId}`; return; }
+    setPhase('connecting');
+    addParticipant({ id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera, isScreenSharing: false, isConnected: true });
+    setMicOn(enableMic); setCameraOn(enableCamera);
+    await startAudio(); if (enableCamera) await startCamera();
+    if (enableMic && isSupported) { setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); shouldListenRef.current = true; startListening(); }
+    setTimeout(() => setPhase('active'), 1000);
+  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId, unlockAudio]);
 
   const handleToggleMic = useCallback(() => {
     const next = !isMicOn;
-    if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach(t => t.enabled = next);
     if (next) { shouldListenRef.current = true; startListening(); setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); }
     else { shouldListenRef.current = false; stopListening(); setProcessingStatus({ stage: 'idle', message: '' }); }
-    setMicOn(next); setEnableMic(next);
-    updateParticipant(participantId, { isMicOn: next }); socketUpdateParticipant({ isMicOn: next });
-    peerSendData({ type: 'participant-update', payload: { id: participantId, isMicOn: next } as any });
-  }, [isMicOn, startListening, stopListening, setMicOn, setProcessingStatus, updateParticipant, participantId, socketUpdateParticipant, peerSendData, t]);
+    setMicOn(next); setEnableMic(next); updateParticipant(participantId, { isMicOn: next });
+  }, [isMicOn, startListening, stopListening, setMicOn, setProcessingStatus, updateParticipant, participantId, t]);
 
   const handleToggleCamera = useCallback(async () => {
     const next = !isCameraOnStore; setEnableCamera(next); setCameraOn(next);
-    updateParticipant(participantId, { isCameraOn: next }); socketUpdateParticipant({ isCameraOn: next });
-    peerSendData({ type: 'participant-update', payload: { id: participantId, isCameraOn: next } as any });
-    if (next) { const s = await startCamera(); if (s) peerReplaceVideoTrack(s.getVideoTracks()[0] || null); }
-    else { stopCamera(); peerReplaceVideoTrack(null); }
-  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, socketUpdateParticipant, peerSendData, startCamera, stopCamera, peerReplaceVideoTrack]);
+    updateParticipant(participantId, { isCameraOn: next });
+    if (next) { const s = await startCamera(); if (s) replaceVideoTrack(s.getVideoTracks()[0] || null); }
+    else { stopCamera(); replaceVideoTrack(null); }
+  }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, startCamera, stopCamera, replaceVideoTrack]);
 
-  const handleEndCall = useCallback(() => {
-    stopListening(); socketDisconnect(); peerDisconnect();
-    localStreamRef.current?.getTracks().forEach(t => t.stop());
-    setMicOn(false); setCameraOn(false); onLeave();
-  }, [stopListening, socketDisconnect, peerDisconnect, setMicOn, setCameraOn, onLeave]);
-
-  const renderInviteModal = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-dark-950/80 backdrop-blur-md p-4 animate-fade-in" onClick={() => setShowInviteModal(false)} dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="relative w-full max-w-lg bg-white dark:bg-bg-dark-900 border border-gray-200 dark:border-white/10 rounded-[32px] p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-brand-neon/20 flex items-center justify-center"><Users className="w-6 h-6 text-brand-dark dark:text-brand-neon" /></div>
-            <div>
-              <h3 className="text-xl font-black text-brand-dark dark:text-white/95">{t.inviteModalTitle}</h3>
-              <p className="text-sm text-emerald-900/60 dark:text-white/60 font-medium">{connectedPeers.length} {t.inviteModalActive}</p>
-            </div>
-          </div>
-          <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors"><X className="w-5 h-5 text-emerald-800/40 dark:text-white/40" /></button>
+  if (phase === 'setup') return (
+    <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-gray-50 dark:bg-[#010b13]" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="w-full max-w-4xl grid md:grid-cols-2 gap-6 bg-white dark:bg-white/5 p-6 rounded-[32px] shadow-2xl border border-gray-200 dark:border-white/10">
+        <div className="relative aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center">
+          <video ref={localVideoRef} autoPlay muted playsInline className={`w-full h-full object-cover transform scale-x-[-1] ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
+          {!enableCamera && <div className="absolute inset-0 flex items-center justify-center"><div className="w-20 h-20 rounded-full bg-brand-neon flex items-center justify-center text-4xl font-black">{ (name || 'U')[0] }</div></div>}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3"><button onClick={() => setEnableMic(!enableMic)} className={`p-3 rounded-xl ${enableMic ? 'bg-white/20' : 'bg-red-500'}`}>{enableMic ? <Mic className="w-5 h-5 text-white" /> : <MicOff className="w-5 h-5 text-white" />}</button><button onClick={() => setEnableCamera(!enableCamera)} className={`p-3 rounded-xl ${enableCamera ? 'bg-white/20' : 'bg-red-500'}`}>{enableCamera ? <Video className="w-5 h-5 text-white" /> : <VideoOff className="w-5 h-5 text-white" />}</button></div>
         </div>
-        <div className="space-y-6">
-          <div className="bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/5 rounded-2xl p-5 flex items-center justify-between gap-4" onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 3000); }}>
-            <p className="text-sm font-mono text-emerald-900/80 dark:text-white/80 break-all select-all text-left" dir="ltr">{`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`}</p>
-            <Copy className="w-5 h-5 text-brand-neon shrink-0" />
-          </div>
-          <button onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 3000); }} className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${copied ? 'bg-green-600 text-white' : 'bg-brand-neon text-brand-dark shadow-lg shadow-brand-neon/20'}`}>
-            {copied ? <><Check className="w-5 h-5" /> {t.linkCopied}</> : <><Copy className="w-5 h-5" /> {t.copyRoomLinkBtn}</>}
-          </button>
+        <div className="flex flex-col justify-center space-y-4">
+          <h2 className="text-2xl font-black">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h2>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} className="w-full px-5 py-3 rounded-xl bg-gray-100 dark:bg-black/40 border-none outline-none font-bold" />
+          <div className="grid grid-cols-2 gap-3"><LanguageSelector value={myLanguage} onChange={setMyLanguage} label="Your Language" /><LanguageSelector value={partnerLanguage} onChange={setPartnerLanguage} label="Partner Language" /></div>
+          <button onClick={handleStartSession} className="w-full py-4 bg-brand-neon text-brand-dark rounded-xl font-black text-lg shadow-lg shadow-brand-neon/20 hover:scale-[1.02] transition-transform">START MEETING</button>
         </div>
       </div>
     </div>
   );
 
-  if (phase === 'setup') {
-    return (
-      <div className="relative min-h-[calc(100dvh-4rem)] flex items-center justify-center p-3 bg-gray-50 dark:bg-bg-dark-950 overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
-        <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-12 gap-3 sm:gap-6 animate-fade-up">
-          <div className="lg:col-span-7 rounded-[32px] bg-white/80 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl overflow-hidden relative aspect-video flex items-center justify-center">
-            <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
-            {!enableCamera && <div className="w-32 h-32 rounded-[40px] bg-white dark:bg-bg-dark-900 border border-gray-100 dark:border-white/10 flex items-center justify-center shadow-2xl relative"><span className="text-6xl font-black text-brand-neon">{(name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)).charAt(0)}</span></div>}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2.5 rounded-[28px] border border-white/10 shadow-lg">
-              <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${enableMic ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>{enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}</button>
-              <button onClick={() => setEnableCamera(!enableCamera)} className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>{enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}</button>
-            </div>
-          </div>
-          <div className="lg:col-span-5 rounded-[32px] bg-white/90 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl p-5 sm:p-8 flex flex-col justify-center space-y-6">
-            <div className="text-center"><h2 className="text-2xl font-black text-brand-dark dark:text-white/95">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h2><p className="text-emerald-900/60 dark:text-white/60 mt-2 text-sm">{t.roomSetupDesc}</p></div>
-            <div className="space-y-4">
-              <div className="space-y-2"><label className="text-sm font-bold text-emerald-900/70 dark:text-white/70 px-1">{t.roomCodeLabel}</label><input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} className="w-full px-5 py-4 rounded-[20px] bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/10 text-brand-dark dark:text-white/90 outline-none" /></div>
-              <div className="space-y-2"><label className="text-sm font-bold text-emerald-900/70 dark:text-white/70 px-1">{t.nameLabel}</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} className="w-full px-5 py-4 rounded-[20px] bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/10 text-brand-dark dark:text-white/90 outline-none" /></div>
-              <div className="grid grid-cols-2 gap-4"><LanguageSelector value={myLanguage} onChange={setMyLanguage} label={t.myLanguageLabel} /><LanguageSelector value={partnerLanguage} onChange={setPartnerLanguage} label={t.partnerLanguageLabel} /></div>
-            </div>
-            <button onClick={handleStartSession} className="w-full py-5 bg-brand-neon text-brand-dark rounded-[24px] text-lg font-black flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.02]"><Zap className="w-6 h-6" /> {role === 'host' ? t.startButtonHost : t.startButtonGuest}</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'connecting') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-bg-dark-950 flex-col gap-6">
-        <Radio className="w-12 h-12 text-brand-neon animate-pulse" />
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-64">
-           {connLogs.map((log, i) => <div key={i} className="text-xs text-white/60 mb-1">› {log}</div>)}
-        </div>
-      </div>
-    );
-  }
+  if (phase === 'connecting') return <div className="min-h-screen flex items-center justify-center bg-[#010b13]"><Activity className="w-12 h-12 text-brand-neon animate-pulse" /></div>;
 
   return (
-    <div className="h-[calc(100dvh-4rem)] sm:h-[100dvh] flex flex-col bg-gray-50 dark:bg-bg-dark-950 overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
-      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
-      <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
-      {showInviteModal && renderInviteModal()}
-
-      {/* Auto-hidden audio status (Non-disruptive) */}
-      {!audioUnlocked && phase === 'active' && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
-          <button 
-            onClick={unlockAudio}
-            className="bg-red-500/90 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl flex items-center gap-2"
-          >
-            <Volume2 className="w-3 h-3" />
-            اضغط هنا لتفعيل صوت الترجمة
-          </button>
-        </div>
-      )}
-
-      <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-gray-200 dark:border-white/10 px-4 py-4 flex flex-row items-center justify-between z-40 relative">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/10">
-            <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_#22C55E]' : 'bg-brand-neon'} animate-pulse`} />
-            <span className="text-sm font-bold text-emerald-900/80 dark:text-white/80">{participants.length} {t.onlineCount}</span>
-          </div>
-          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-brand-muted dark:text-brand-neon text-sm font-bold rounded-2xl transition-all"><UserPlus className="w-4 h-4" /> {t.inviteBtn}</button>
-        </div>
-        <div className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-white/10">
-          <span className="text-xs font-bold text-brand-dark dark:text-white/90">{getLanguageName(myLanguage)}</span>
-          <ArrowRight className={`w-4 h-4 text-brand-neon ${isRtl ? 'scale-x-[-1]' : ''}`} />
-          <span className="text-xs font-bold text-brand-dark dark:text-white/90">{getLanguageName(partnerLanguage)}</span>
-        </div>
+    <div className="h-[100dvh] flex flex-col bg-gray-50 dark:bg-[#010b13] overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+      <audio ref={ttsAudioRef} playsInline style={{ display: 'none' }} />
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-4 gap-4">
+        <div className="flex-1 min-h-0 rounded-[24px] sm:rounded-[32px] overflow-hidden border border-gray-200 dark:border-white/5 relative bg-white dark:bg-black/40 shadow-xl"><VideoGrid /></div>
+        <div className="lg:w-[400px] lg:h-full rounded-[24px] sm:rounded-[32px] overflow-hidden bg-white dark:bg-bg-dark-900 border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col shrink-0"><SidePanel myId={participantId} myName={name || 'User'} myRole={role} myLanguage={myLanguage} partnerLanguage={partnerLanguage} onSendMessage={(m) => sendChatMessage(m)} /></div>
       </div>
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative p-4 gap-4 bg-gray-50 dark:bg-bg-dark-950">
-        <div className="min-h-0 rounded-[32px] overflow-hidden border border-gray-200 dark:border-white/5 relative bg-white dark:bg-bg-dark-900 flex-1"><VideoGrid /></div>
-        {sidePanelOpen && (
-          <div className={`fixed ${isRtl ? 'left-4' : 'right-4'} top-24 bottom-24 lg:static lg:w-[400px] lg:h-full rounded-[32px] overflow-hidden bg-white/95 dark:bg-bg-dark-900/95 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col z-50 shrink-0`}>
-            <SidePanel
-              myId={participantId} myName={name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)}
-              myRole={role} myLanguage={myLanguage} partnerLanguage={partnerLanguage}
-              onSendMessage={(msg) => { addChatMessage(msg); socketSendChat(msg); peerSendData({ type: 'chat', payload: msg }); }}
-              onSendFile={(f) => { peerSendFile(f, name || 'User'); }}
-              fileTransfers={fileTransfers}
-            />
-          </div>
-        )}
-      </div>
-      <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
+      <MeetingControls roomId={roomId} onEndCall={() => onLeave()} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
     </div>
   );
 }
 
-export default function RoomPage2(props: RoomPageProps) {
-  return (
-    <RoomErrorBoundary>
-      <RoomPageContent {...props} />
-    </RoomErrorBoundary>
-  );
-}
+export default function RoomPage2(props: RoomPageProps) { return <RoomErrorBoundary><RoomPageContent {...props} /></RoomErrorBoundary>; }
