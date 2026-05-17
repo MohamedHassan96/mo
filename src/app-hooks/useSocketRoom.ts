@@ -99,10 +99,14 @@ export function useSocketRoom(opts: UseSocketRoomProps) {
     });
 
     socket.on('translated-audio', (data: any) => {
+      console.log(`[Socket] 🔊 Received translated audio from ${data.speakerName}`);
       cbRef.current.onTranslatedAudio(data);
     });
 
-    return () => { socket.disconnect(); };
+    return () => { 
+      console.log('🔌 Disconnecting socket...');
+      socket.disconnect(); 
+    };
     // BUG-FIX-1: removed opts.participant.id from deps — id never changes,
     // but was causing effect to re-run and create duplicate sockets.
   }, [opts.enabled, opts.roomId]);

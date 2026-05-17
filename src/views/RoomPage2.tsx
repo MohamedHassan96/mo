@@ -17,7 +17,7 @@ import MicStatusIndicator from '@/ui/MicStatusIndicator';
 import { playJoinSound, playMessageSound } from '@/utils/sounds';
 import {
   Mic, MicOff, Video, VideoOff, Copy, Check, UserPlus, Radio, ArrowRight,
-  Link2, Share2, Users, X, Zap, Sparkles
+  Link2, Share2, Users, X, Zap, Sparkles, Activity
 } from 'lucide-react';
 import type { ParticipantRole, ChatMessage, Participant, TranscriptEntry } from '@/types';
 
@@ -48,7 +48,12 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [enableMic, setEnableMic] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [customRoomId, setCustomRoomId] = useState(roomId);
+  
+  // High-Resiliency Logs
+  const [connLogs, setConnLogs] = useState<string[]>(['بانتظار البدء...']);
+  const addLog = (msg: string) => setConnLogs(prev => [...prev.slice(-3), msg]);
 
+  // Professional File Transfer State
   const [fileTransfers, setFileTransfers] = useState<Record<string, { 
     name: string, progress: number, status: string, senderName: string, blob?: Blob 
   }>>({});
@@ -60,6 +65,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       try {
         const res = await fetch('/api/health');
         if (res.ok) setSystemHealth(await res.json());
+        else addLog('فشل فحص النظام');
       } catch (e) { console.error('Health check failed', e); }
     };
     checkHealth();
@@ -118,7 +124,10 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [addChatMessage, participantId]);
 
   const handleConnectionChange = useCallback((connected: boolean) => {
-    if (connected) setPhase(prev => prev === 'connecting' ? 'active' : prev);
+    if (connected) {
+      addLog('تم الاتصال بالطرف الآخر');
+      setPhase(prev => prev === 'connecting' ? 'active' : prev);
+    }
   }, []);
 
   const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
@@ -163,6 +172,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const {
     isReady: isPeerReady, connectedPeers, connectToHost, connectToPeer,
+    myPeerId: actualPeerId,
     replaceVideoTrack: peerReplaceVideoTrack, disconnect: peerDisconnect,
     sendData: peerSendData, sendFile: peerSendFile
   } = usePeerConnection({
@@ -176,6 +186,15 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onFileTransferProgress: (id, p) => setFileTransfers(prev => ({ ...prev, [id]: { ...prev[id], progress: p } })),
     onFileTransferComplete: (id, blob, name) => setFileTransfers(prev => ({ ...prev, [id]: { ...prev[id], progress: 100, status: 'completed', blob } })),
   });
+
+  // Peer ID Sync
+  useEffect(() => {
+    if (actualPeerId && actualPeerId !== myPeerId) {
+      console.log('🔄 Peer ID changed, updating...', actualPeerId);
+      socketUpdateParticipant({ peerId: actualPeerId });
+      updateParticipant(participantId, { peerId: actualPeerId });
+    }
+  }, [actualPeerId, myPeerId, socketUpdateParticipant, updateParticipant, participantId]);
 
   const handleSpeechResult = useCallback(async (text: string, isFinal: boolean) => {
     processRecognizedText(text, isFinal, {
@@ -210,6 +229,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   useEffect(() => {
     if (phase === 'connecting' && isPeerReady && role === 'guest' && storeLocalStream) {
+      addLog('جاري الربط مع المضيف...');
       connectToHost(new MediaStream(storeLocalStream.getVideoTracks()));
     }
   }, [phase, isPeerReady, role, connectToHost, storeLocalStream]);
@@ -225,15 +245,20 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [storeLocalStream, peerReplaceVideoTrack]);
 
   const handleStartSession = useCallback(async () => {
-    if (customRoomId && customRoomId !== roomId) { window.location.hash = `/room/${customRoomId}`; return; }
-    const { config } = useConfigStore.getState();
-    if (config.geminiApiKey || config.elevenLabsApiKey) socketUpdateRoomConfig({ geminiApiKey: config.geminiApiKey, elevenLabsApiKey: config.elevenLabsApiKey });
-    setPhase('connecting');
-    addParticipant({ id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera, isScreenSharing: false, isConnected: true });
-    setMicOn(enableMic); setCameraOn(enableCamera);
-    await startAudio(); if (enableCamera) await startCamera();
-    if (enableMic && isSupported) { setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); shouldListenRef.current = true; startListening(); }
-    setTimeout(() => setPhase('active'), role === 'host' ? 0 : 2000);
+    try {
+      if (customRoomId && customRoomId !== roomId) { window.location.hash = `/room/${customRoomId}`; return; }
+      addLog('جاري تشغيل محرك الاتصال...');
+      const { config } = useConfigStore.getState();
+      if (config.geminiApiKey || config.elevenLabsApiKey) socketUpdateRoomConfig({ geminiApiKey: config.geminiApiKey, elevenLabsApiKey: config.elevenLabsApiKey });
+      setPhase('connecting');
+      addParticipant({ id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera, isScreenSharing: false, isConnected: true });
+      setMicOn(enableMic); setCameraOn(enableCamera);
+      addLog('جاري الوصول للوسائط...');
+      await startAudio(); if (enableCamera) await startCamera();
+      if (enableMic && isSupported) { setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); shouldListenRef.current = true; startListening(); }
+      addLog('النظام جاهز');
+      setTimeout(() => setPhase('active'), role === 'host' ? 0 : 2000);
+    } catch (err) { console.error('Start failed', err); addLog('خطأ في تشغيل الغرفة'); }
   }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId, socketUpdateRoomConfig]);
 
   const handleToggleMic = useCallback(() => {
@@ -321,7 +346,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             <span className="text-sm font-bold text-emerald-900/80 dark:text-white/80">{participants.length} {t.onlineCount}</span>
           </div>
           
-          {/* Pro Health Monitor */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-200 dark:border-white/5">
             <div className={`w-1.5 h-1.5 rounded-full ${systemHealth.ok ? 'bg-green-500' : 'bg-red-500'}`} />
             <span className="text-[10px] font-black uppercase text-gray-400 dark:text-white/40 tracking-tighter">System Ready</span>
@@ -355,6 +379,18 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
           </div>
         )}
       </div>
+
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4 pointer-events-none">
+        <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl">
+          <div className="flex items-center gap-2 mb-2 text-brand-neon font-black text-[10px] uppercase tracking-widest"><Activity className="w-3 h-3" /> Connection Status</div>
+          <div className="space-y-1.5">
+            {connLogs.map((log, i) => (
+              <div key={i} className={`text-[10px] font-bold ${i === connLogs.length - 1 ? 'text-white' : 'text-white/40'}`}>› {log}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
     </div>
   );
@@ -362,7 +398,12 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   return (
     <>
       <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
-      {phase === 'setup' ? renderSetup() : phase === 'connecting' ? <div className="min-h-screen flex items-center justify-center bg-bg-dark-950"><Radio className="w-12 h-12 text-brand-neon animate-pulse" /></div> : renderActive()}
+      {phase === 'setup' ? renderSetup() : phase === 'connecting' ? <div className="min-h-screen flex items-center justify-center bg-bg-dark-950 flex-col gap-6">
+        <Radio className="w-12 h-12 text-brand-neon animate-pulse" />
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-64">
+           {connLogs.map((log, i) => <div key={i} className="text-xs text-white/60 mb-1">› {log}</div>)}
+        </div>
+      </div> : renderActive()}
     </>
   );
 }

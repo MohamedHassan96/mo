@@ -278,7 +278,8 @@ export function usePeerConnection(opts: Options) {
   }, [refreshPeers, setRemoteStreamForPeer, setRemoteScreenStreamForPeer]);
 
   return {
-    isReady, error, connectedPeers, myPeerId: peerRef.current?.id ?? '',
+    isReady, error, connectedPeers, 
+    myPeerId: peerRef.current?.id ?? opts.myId,
     connectToHost, connectToPeer, setLocalStream,
     startScreenShare, stopScreenShare, replaceVideoTrack, disconnect,
     sendData, sendFile
