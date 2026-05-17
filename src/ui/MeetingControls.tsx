@@ -307,5 +307,6 @@ export default function MeetingControls({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
