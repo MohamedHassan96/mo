@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo, Component, ErrorInfo, ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useRoomStore } from '@/state/roomStore';
 import { useSpeechToText } from '@/app-hooks/useSpeechToText';
@@ -13,13 +13,35 @@ import LanguageSelector from '@/ui/LanguageSelector';
 import VideoGrid from '@/ui/VideoGrid';
 import SidePanel from '@/ui/SidePanel';
 import MeetingControls from '@/ui/MeetingControls';
-import MicStatusIndicator from '@/ui/MicStatusIndicator';
 import { playJoinSound, playMessageSound } from '@/utils/sounds';
 import {
   Mic, MicOff, Video, VideoOff, Copy, Check, UserPlus, Radio, ArrowRight,
-  Link2, Share2, Users, X, Zap, Sparkles, Activity
+  Link2, Share2, Users, X, Zap, Sparkles, Activity, AlertTriangle
 } from 'lucide-react';
 import type { ParticipantRole, ChatMessage, Participant, TranscriptEntry } from '@/types';
+
+// ─── Error Boundary Component ─────────────────────────────────────
+class RoomErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error('[RoomBoundary] CRASH:', error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-6 text-center">
+          <AlertTriangle className="w-16 h-16 text-red-600 mb-4" />
+          <h1 className="text-2xl font-bold text-red-900 mb-2">حدث خطأ في تحميل الغرفة</h1>
+          <p className="text-red-700 mb-4 max-w-md">{this.state.error?.message}</p>
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">إعادة المحاولة</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface RoomPageProps {
   roomId: string;
@@ -29,7 +51,9 @@ interface RoomPageProps {
 
 type RoomPhase = 'setup' | 'connecting' | 'active';
 
-export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
+function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
+  console.log(`[RoomPage] Initializing for room: ${roomId}, role: ${role}`);
+  
   const { uiLanguage } = useConfigStore();
   const t = getTranslations(uiLanguage);
   const isRtl = ['ar', 'fa', 'ur'].includes(uiLanguage);
@@ -39,7 +63,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [myLanguage, setMyLanguage] = useState(role === 'host' ? detectBrowserLanguage() : 'en');
   const [partnerLanguage, setPartnerLanguage] = useState(role === 'host' ? 'en' : 'ar');
   const [copied, setCopied] = useState(false);
-  const [copiedRoomCode, setCopiedRoomCode] = useState(false);
   const [participantId] = useState(() => uuid());
   const normalizedRoomId = roomId.trim().toLowerCase();
   const myPeerId = useMemo(() => role === 'host' ? normalizedRoomId : `guest-${uuid().slice(0, 8)}`, [role, normalizedRoomId]);
@@ -49,18 +72,17 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [customRoomId, setCustomRoomId] = useState(roomId);
   
-  // High-Resiliency Logs
   const [connLogs, setConnLogs] = useState<string[]>(['بانتظار البدء...']);
-  const addLog = (msg: string) => setConnLogs(prev => [...prev.slice(-3), msg]);
+  const addLog = (msg: string) => {
+    console.log(`[RoomLog] ${msg}`);
+    setConnLogs(prev => [...prev.slice(-3), msg]);
+  };
 
-  // Professional File Transfer State
-  const [fileTransfers, setFileTransfers] = useState<Record<string, { 
-    name: string, progress: number, status: string, senderName: string, blob?: Blob 
-  }>>({});
-
-  const [systemHealth, setSystemHealth] = useState<{ ok: boolean, keys: Record<string, boolean> | null }>({ ok: false, keys: null });
+  const [fileTransfers, setFileTransfers] = useState<Record<string, any>>({});
+  const [systemHealth, setSystemHealth] = useState<{ ok: boolean, keys: any }>({ ok: false, keys: null });
 
   useEffect(() => {
+    console.log('[RoomPage] Mount');
     const checkHealth = async () => {
       try {
         const res = await fetch('/api/health');
@@ -69,8 +91,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       } catch (e) { console.error('Health check failed', e); }
     };
     checkHealth();
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
+    return () => console.log('[RoomPage] Unmount');
   }, []);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -92,16 +113,15 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   const { processRecognizedText } = useRealtimeTranslation();
   const {
     processingStatus, sidePanelOpen, participants,
-    isMicOn, isCameraOn: isCameraOnStore, audioPlaybackEnabled,
+    isMicOn, isCameraOn: isCameraOnStore,
     localStream: storeLocalStream,
     setMicOn, setCameraOn, addParticipant, updateParticipant, removeParticipant,
     addChatMessage, setMyId: setStoreMyId,
-    setProcessingStatus, createRoom, leaveRoom, setLocalStream: setStoreLocalStream,
-    setRemoteStream, addTranscript, updateTranscript
+    setProcessingStatus, createRoom, leaveRoom, setRemoteStream
   } = useRoomStore();
 
   const {
-    startCamera, stopCamera, startAudio, replaceVideoTrack,
+    startCamera, stopCamera, startAudio,
   } = useMediaDevices();
 
   useEffect(() => {
@@ -131,17 +151,17 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, []);
 
   const handleTranscriptReceived = useCallback(async (transcript: TranscriptEntry) => {
-    addTranscript(transcript);
-  }, [addTranscript]);
+    useRoomStore.getState().addTranscript(transcript);
+  }, []);
 
-  const handleTranslatedAudio = useCallback((data: {
-    originalId: string; speakerName: string; originalText: string;
-    translatedText: string; translatedLanguage: string; audioBase64: string;
-  }) => {
+  const handleTranslatedAudio = useCallback((data: any) => {
     if (!data.translatedText?.trim()) return;
-    updateTranscript(data.originalId, { translatedText: data.translatedText, translatedLanguage: data.translatedLanguage });
+    useRoomStore.getState().updateTranscript(data.originalId, { 
+      translatedText: data.translatedText, 
+      translatedLanguage: data.translatedLanguage 
+    });
     if (!data.audioBase64) return;
-    setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus(data.speakerName) });
+    setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus?.(data.speakerName) || `🔊 ${data.speakerName}...` });
     const afterPlay = () => {
       if (shouldListenRef.current) { startListeningRef.current?.(); setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); }
       else setProcessingStatus({ stage: 'idle', message: '' });
@@ -153,7 +173,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
       audio.onended = afterPlay; audio.onerror = afterPlay;
       audio.play().catch(err => { console.warn('[TTS] Playback blocked', err); afterPlay(); });
     }
-  }, [updateTranscript, setProcessingStatus, t]);
+  }, [setProcessingStatus, t]);
 
   const {
     sendChatMessage: socketSendChat, sendTranscript: socketSendTranscript,
@@ -187,10 +207,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     onFileTransferComplete: (id, blob, name) => setFileTransfers(prev => ({ ...prev, [id]: { ...prev[id], progress: 100, status: 'completed', blob } })),
   });
 
-  // Peer ID Sync
   useEffect(() => {
     if (actualPeerId && actualPeerId !== myPeerId) {
-      console.log('🔄 Peer ID changed, updating...', actualPeerId);
       socketUpdateParticipant({ peerId: actualPeerId });
       updateParticipant(participantId, { peerId: actualPeerId });
     }
@@ -220,7 +238,8 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
   }, [isListening, stopListening, startListening]);
 
   useEffect(() => {
-    setStoreMyId(participantId); if (role === 'host') createRoom(normalizedRoomId, participantId);
+    setStoreMyId(participantId); 
+    if (role === 'host') createRoom(normalizedRoomId, participantId);
     return () => {
       stopListening(); socketDisconnect(); peerDisconnect();
       localStreamRef.current?.getTracks().forEach(t => t.stop()); leaveRoom();
@@ -246,6 +265,7 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
 
   const handleStartSession = useCallback(async () => {
     try {
+      console.log('[RoomPage] Starting session...');
       if (customRoomId && customRoomId !== roomId) { window.location.hash = `/room/${customRoomId}`; return; }
       addLog('جاري تشغيل محرك الاتصال...');
       const { config } = useConfigStore.getState();
@@ -311,33 +331,47 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     </div>
   );
 
-  const renderSetup = () => (
-    <div className="relative min-h-[calc(100dvh-4rem)] flex items-center justify-center p-3 bg-gray-50 dark:bg-bg-dark-950 overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-12 gap-3 sm:gap-6 animate-fade-up">
-        <div className="lg:col-span-7 rounded-[32px] bg-white/80 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl overflow-hidden relative aspect-video flex items-center justify-center">
-          <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
-          {!enableCamera && <div className="w-32 h-32 rounded-[40px] bg-white dark:bg-bg-dark-900 border border-gray-100 dark:border-white/10 flex items-center justify-center shadow-2xl relative"><span className="text-6xl font-black text-brand-neon">{(name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)).charAt(0)}</span></div>}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2.5 rounded-[28px] border border-white/10 shadow-lg">
-            <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${enableMic ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>{enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}</button>
-            <button onClick={() => setEnableCamera(!enableCamera)} className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>{enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}</button>
+  if (phase === 'setup') {
+    return (
+      <div className="relative min-h-[calc(100dvh-4rem)] flex items-center justify-center p-3 bg-gray-50 dark:bg-bg-dark-950 overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+        <div className="relative z-10 w-full max-w-6xl grid lg:grid-cols-12 gap-3 sm:gap-6 animate-fade-up">
+          <div className="lg:col-span-7 rounded-[32px] bg-white/80 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl overflow-hidden relative aspect-video flex items-center justify-center">
+            <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
+            {!enableCamera && <div className="w-32 h-32 rounded-[40px] bg-white dark:bg-bg-dark-900 border border-gray-100 dark:border-white/10 flex items-center justify-center shadow-2xl relative"><span className="text-6xl font-black text-brand-neon">{(name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)).charAt(0)}</span></div>}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/40 backdrop-blur-xl p-2.5 rounded-[28px] border border-white/10 shadow-lg">
+              <button onClick={() => setEnableMic(!enableMic)} className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${enableMic ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>{enableMic ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}</button>
+              <button onClick={() => setEnableCamera(!enableCamera)} className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${enableCamera ? 'bg-white dark:bg-white/10 text-brand-dark dark:text-white' : 'bg-red-500 text-white'}`}>{enableCamera ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}</button>
+            </div>
           </div>
-        </div>
-        <div className="lg:col-span-5 rounded-[32px] bg-white/90 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl p-5 sm:p-8 flex flex-col justify-center space-y-6">
-          <div className="text-center"><h2 className="text-2xl font-black text-brand-dark dark:text-white/95">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h2><p className="text-emerald-900/60 dark:text-white/60 mt-2 text-sm">{t.roomSetupDesc}</p></div>
-          <div className="space-y-4">
-            <div className="space-y-2"><label className="text-sm font-bold text-emerald-900/70 dark:text-white/70 px-1">{t.roomCodeLabel}</label><input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} className="w-full px-5 py-4 rounded-[20px] bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/10 text-brand-dark dark:text-white/90 outline-none" /></div>
-            <div className="space-y-2"><label className="text-sm font-bold text-emerald-900/70 dark:text-white/70 px-1">{t.nameLabel}</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} className="w-full px-5 py-4 rounded-[20px] bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/10 text-brand-dark dark:text-white/90 outline-none" /></div>
-            <div className="grid grid-cols-2 gap-4"><LanguageSelector value={myLanguage} onChange={setMyLanguage} label={t.myLanguageLabel} /><LanguageSelector value={partnerLanguage} onChange={setPartnerLanguage} label={t.partnerLanguageLabel} /></div>
+          <div className="lg:col-span-5 rounded-[32px] bg-white/90 dark:bg-white/5 backdrop-blur-3xl border border-gray-200 dark:border-white/10 shadow-xl p-5 sm:p-8 flex flex-col justify-center space-y-6">
+            <div className="text-center"><h2 className="text-2xl font-black text-brand-dark dark:text-white/95">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h2><p className="text-emerald-900/60 dark:text-white/60 mt-2 text-sm">{t.roomSetupDesc}</p></div>
+            <div className="space-y-4">
+              <div className="space-y-2"><label className="text-sm font-bold text-emerald-900/70 dark:text-white/70 px-1">{t.roomCodeLabel}</label><input type="text" value={customRoomId} onChange={(e) => setCustomRoomId(e.target.value.toLowerCase())} className="w-full px-5 py-4 rounded-[20px] bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/10 text-brand-dark dark:text-white/90 outline-none" /></div>
+              <div className="space-y-2"><label className="text-sm font-bold text-emerald-900/70 dark:text-white/70 px-1">{t.nameLabel}</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} className="w-full px-5 py-4 rounded-[20px] bg-gray-50 dark:bg-bg-dark-950 border border-gray-200 dark:border-white/10 text-brand-dark dark:text-white/90 outline-none" /></div>
+              <div className="grid grid-cols-2 gap-4"><LanguageSelector value={myLanguage} onChange={setMyLanguage} label={t.myLanguageLabel} /><LanguageSelector value={partnerLanguage} onChange={setPartnerLanguage} label={t.partnerLanguageLabel} /></div>
+            </div>
+            <button onClick={handleStartSession} className="w-full py-5 bg-brand-neon text-brand-dark rounded-[24px] text-lg font-black flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.02]"><Zap className="w-6 h-6" /> {role === 'host' ? t.startButtonHost : t.startButtonGuest}</button>
           </div>
-          <button onClick={handleStartSession} className="w-full py-5 bg-brand-neon text-brand-dark rounded-[24px] text-lg font-black flex items-center justify-center gap-3 shadow-lg transition-all hover:scale-[1.02]"><Zap className="w-6 h-6" /> {role === 'host' ? t.startButtonHost : t.startButtonGuest}</button>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const renderActive = () => (
+  if (phase === 'connecting') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-dark-950 flex-col gap-6">
+        <Radio className="w-12 h-12 text-brand-neon animate-pulse" />
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-64">
+           {connLogs.map((log, i) => <div key={i} className="text-xs text-white/60 mb-1">› {log}</div>)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <div className="h-[calc(100dvh-4rem)] sm:h-[100dvh] flex flex-col bg-gray-50 dark:bg-bg-dark-950 overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+      <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
       {showInviteModal && renderInviteModal()}
       <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-gray-200 dark:border-white/10 px-4 py-4 flex flex-row items-center justify-between z-40 relative">
         <div className="flex items-center gap-4">
@@ -345,18 +379,6 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_#22C55E]' : 'bg-brand-neon'} animate-pulse`} />
             <span className="text-sm font-bold text-emerald-900/80 dark:text-white/80">{participants.length} {t.onlineCount}</span>
           </div>
-          
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-200 dark:border-white/5">
-            <div className={`w-1.5 h-1.5 rounded-full ${systemHealth.ok ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-[10px] font-black uppercase text-gray-400 dark:text-white/40 tracking-tighter">System Ready</span>
-            {systemHealth.keys && (
-              <div className="flex gap-1 ml-1">
-                {systemHealth.keys.groq && <span className="text-[9px] bg-brand-neon/10 text-brand-neon px-1 rounded">GROQ</span>}
-                {systemHealth.keys.elevenLabs && <span className="text-[9px] bg-brand-neon/10 text-brand-neon px-1 rounded">11LABS</span>}
-              </div>
-            )}
-          </div>
-
           <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-brand-muted dark:text-brand-neon text-sm font-bold rounded-2xl transition-all"><UserPlus className="w-4 h-4" /> {t.inviteBtn}</button>
         </div>
         <div className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-white/10">
@@ -373,37 +395,21 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
               myId={participantId} myName={name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder)}
               myRole={role} myLanguage={myLanguage} partnerLanguage={partnerLanguage}
               onSendMessage={(msg) => { addChatMessage(msg); socketSendChat(msg); peerSendData({ type: 'chat', payload: msg }); }}
-              onSendFile={(f) => { setFileTransfers(prev => ({ ...prev, [Date.now()]: { name: f.name, progress: 0, status: 'sending', senderName: 'Me' } })); peerSendFile(f, name || 'User'); }}
+              onSendFile={(f) => { peerSendFile(f, name || 'User'); }}
               fileTransfers={fileTransfers}
             />
           </div>
         )}
       </div>
-
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4 pointer-events-none">
-        <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-3 shadow-2xl">
-          <div className="flex items-center gap-2 mb-2 text-brand-neon font-black text-[10px] uppercase tracking-widest"><Activity className="w-3 h-3" /> Connection Status</div>
-          <div className="space-y-1.5">
-            {connLogs.map((log, i) => (
-              <div key={i} className={`text-[10px] font-bold ${i === connLogs.length - 1 ? 'text-white' : 'text-white/40'}`}>› {log}</div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       <MeetingControls roomId={roomId} onEndCall={handleEndCall} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
     </div>
   );
+}
 
+export default function RoomPage2(props: RoomPageProps) {
   return (
-    <>
-      <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
-      {phase === 'setup' ? renderSetup() : phase === 'connecting' ? <div className="min-h-screen flex items-center justify-center bg-bg-dark-950 flex-col gap-6">
-        <Radio className="w-12 h-12 text-brand-neon animate-pulse" />
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-64">
-           {connLogs.map((log, i) => <div key={i} className="text-xs text-white/60 mb-1">› {log}</div>)}
-        </div>
-      </div> : renderActive()}
-    </>
+    <RoomErrorBoundary>
+      <RoomPageContent {...props} />
+    </RoomErrorBoundary>
   );
 }
