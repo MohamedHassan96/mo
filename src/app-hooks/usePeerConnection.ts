@@ -92,7 +92,6 @@ export function usePeerConnection(opts: Options) {
         const buffer = fileBuffersRef.current.get(msg.payload.id);
         if (buffer) {
           buffer.chunks[msg.payload.index] = msg.payload.chunk;
-          // PeerJS might send as Uint8Array or ArrayBuffer
           const bytes = msg.payload.chunk.byteLength || (msg.payload.chunk as any).length || 0;
           buffer.receivedSize += bytes;
           const progress = Math.min(100, Math.round((buffer.receivedSize / buffer.totalSize) * 100));
@@ -114,73 +113,93 @@ export function usePeerConnection(opts: Options) {
   useEffect(() => {
     if (opts.enabled === false) return;
 
-    const peer = new Peer(opts.myId, {
-      debug: 1,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-        ],
+    const initPeer = (id: string) => {
+      if (peerRef.current) {
+        try { peerRef.current.destroy(); } catch (e) {}
       }
-    });
-    peerRef.current = peer;
+      
+      console.log('📡 Initializing PeerJS with ID:', id);
+      const peer = new Peer(id, {
+        debug: 1,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+          ],
+        }
+      });
+      peerRef.current = peer;
 
-    const readyTimer = setTimeout(() => { setIsReady(true); }, 5000);
+      peer.on('open', (assignedId) => {
+        console.log('✅ PeerJS Connected | ID:', assignedId);
+        setIsReady(true);
+        setError(null);
+      });
 
-    peer.on('connection', (conn) => {
-      const peerId = conn.peer;
-      upsertConn(peerId, { dc: conn });
-      conn.on('open', () => {
-        cbRef.current.onPeerConnected?.(peerId);
+      peer.on('connection', (conn) => {
+        const peerId = conn.peer;
+        upsertConn(peerId, { dc: conn });
+        conn.on('open', () => { cbRef.current.onPeerConnected?.(peerId); refreshPeers(); });
+        conn.on('data', (data) => handleIncomingData(data));
+        conn.on('close', () => {
+          const existing = connsRef.current.get(peerId);
+          if (existing) existing.dc = null;
+          pruneConn(peerId); refreshPeers();
+        });
         refreshPeers();
       });
-      conn.on('data', (data) => handleIncomingData(data));
-      conn.on('close', () => {
-        const existing = connsRef.current.get(peerId);
-        if (existing) existing.dc = null;
-        pruneConn(peerId); refreshPeers();
-      });
-      refreshPeers();
-    });
 
-    peer.on('call', (call) => {
-      const peerId = call.peer;
-      const kind = call.metadata?.kind === 'screen' ? 'screen' : 'camera';
-      call.answer(kind === 'camera' ? localStreamRef.current ?? undefined : undefined);
-      upsertConn(peerId, kind === 'screen' ? { sc: call } : { mc: call });
-      call.on('stream', (remoteStream) => {
-        if (kind === 'screen') setRemoteScreenStreamForPeer(peerId, remoteStream);
-        else {
-          cbRef.current.onRemoteStream(remoteStream, peerId);
-          setRemoteStreamForPeer(peerId, remoteStream);
-        }
+      peer.on('call', (call) => {
+        const peerId = call.peer;
+        const kind = call.metadata?.kind === 'screen' ? 'screen' : 'camera';
+        call.answer(kind === 'camera' ? localStreamRef.current ?? undefined : undefined);
+        upsertConn(peerId, kind === 'screen' ? { sc: call } : { mc: call });
+        call.on('stream', (remoteStream) => {
+          if (kind === 'screen') setRemoteScreenStreamForPeer(peerId, remoteStream);
+          else {
+            cbRef.current.onRemoteStream(remoteStream, peerId);
+            setRemoteStreamForPeer(peerId, remoteStream);
+          }
+          refreshPeers();
+        });
+        call.on('close', () => {
+          const existing = connsRef.current.get(peerId);
+          if (existing) {
+            if (kind === 'screen') existing.sc = null;
+            else existing.mc = null;
+          }
+          if (kind === 'screen') setRemoteScreenStreamForPeer(peerId, null);
+          else setRemoteStreamForPeer(peerId, null);
+          pruneConn(peerId); cbRef.current.onParticipantLeft(peerId); refreshPeers();
+        });
         refreshPeers();
       });
-      call.on('close', () => {
-        const existing = connsRef.current.get(peerId);
-        if (existing) {
-          if (kind === 'screen') existing.sc = null;
-          else existing.mc = null;
-        }
-        if (kind === 'screen') setRemoteScreenStreamForPeer(peerId, null);
-        else setRemoteStreamForPeer(peerId, null);
-        pruneConn(peerId); cbRef.current.onParticipantLeft(peerId); refreshPeers();
-      });
-      refreshPeers();
-    });
 
-    peer.on('open', () => { clearTimeout(readyTimer); setIsReady(true); setError(null); });
-    peer.on('error', (err) => { clearTimeout(readyTimer); setIsReady(true); if (err.type === 'unavailable-id') setError(opts.isHost ? 'الغرفة مستخدمة بالفعل' : null); });
-    peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
+      peer.on('error', (err) => {
+        console.error('❌ PeerJS Error:', err.type, err);
+        if (err.type === 'unavailable-id') {
+          console.warn('⚠️ ID taken, retrying with randomized ID...');
+          setTimeout(() => initPeer(`${id}-${Math.random().toString(36).slice(2, 6)}`), 500);
+        } else {
+          setIsReady(true);
+        }
+      });
+
+      peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
+    };
+
+    initPeer(opts.myId);
 
     return () => {
-      clearTimeout(readyTimer);
       connsRef.current.forEach((c, peerId) => {
         c.mc?.close(); c.sc?.close(); c.dc?.close();
         setRemoteStreamForPeer(peerId, null); setRemoteScreenStreamForPeer(peerId, null);
       });
-      connsRef.current.clear(); peer.destroy();
+      connsRef.current.clear();
+      if (peerRef.current) peerRef.current.destroy();
     };
   }, [
     opts.roomId, opts.isHost, opts.enabled, opts.myId,
@@ -190,42 +209,21 @@ export function usePeerConnection(opts: Options) {
 
   const sendFile = useCallback(async (file: File, senderName: string) => {
     const id = Math.random().toString(36).slice(2, 11);
-    const CHUNK_SIZE = 16384; // 16KB
-    
-    // Notify sender UI
+    const CHUNK_SIZE = 16384; 
     cbRef.current.onFileTransferStart?.({ id, name: file.name, size: file.size, senderName: 'أنا', status: 'sending' });
-
     sendData({ type: 'file-start', payload: { id, name: file.name, size: file.size, type: file.type, senderName } });
-
     const reader = new FileReader();
-    let offset = 0;
-    let index = 0;
-
-    const readNextChunk = () => {
-      const slice = file.slice(offset, offset + CHUNK_SIZE);
-      reader.readAsArrayBuffer(slice);
-    };
-
+    let offset = 0; let index = 0;
+    const readNextChunk = () => { const slice = file.slice(offset, offset + CHUNK_SIZE); reader.readAsArrayBuffer(slice); };
     reader.onload = (e) => {
       if (e.target?.result) {
         sendData({ type: 'file-chunk', payload: { id, chunk: e.target.result, index } });
-        offset += CHUNK_SIZE;
-        index++;
-        
-        // Progress for sender
-        const progress = Math.min(100, Math.round((offset / file.size) * 100));
-        cbRef.current.onFileTransferProgress?.(id, progress);
-
-        if (offset < file.size) {
-          // Small timeout to prevent data channel saturation on mobile
-          setTimeout(readNextChunk, 5);
-        } else {
-          sendData({ type: 'file-end', payload: { id } });
-          cbRef.current.onFileTransferComplete?.(id, file, file.name);
-        }
+        offset += CHUNK_SIZE; index++;
+        cbRef.current.onFileTransferProgress?.(id, Math.min(100, Math.round((offset / file.size) * 100)));
+        if (offset < file.size) setTimeout(readNextChunk, 5);
+        else { sendData({ type: 'file-end', payload: { id } }); cbRef.current.onFileTransferComplete?.(id, file, file.name); }
       }
     };
-
     readNextChunk();
     return id;
   }, [sendData]);
@@ -236,41 +234,23 @@ export function usePeerConnection(opts: Options) {
     if (!peer || !targetPeerId || targetPeerId === opts.myId) return false;
     const existing = connsRef.current.get(targetPeerId);
     if (existing?.mc && existing?.dc) return true;
-    if (!peer.open) {
-      await new Promise<void>((resolve) => {
-        peer.once('open', () => resolve());
-        setTimeout(resolve, 4000);
-      });
-    }
+    if (!peer.open) { await new Promise<void>((resolve) => { peer.once('open', () => resolve()); setTimeout(resolve, 4000); }); }
     try {
       const dataConn = existing?.dc?.open ? existing.dc : peer.connect(targetPeerId);
       upsertConn(targetPeerId, { dc: dataConn });
       dataConn.on('open', () => { cbRef.current.onPeerConnected?.(targetPeerId); refreshPeers(); });
       dataConn.on('data', (data) => handleIncomingData(data));
-      dataConn.on('close', () => {
-        const current = connsRef.current.get(targetPeerId);
-        if (current) current.dc = null;
-        pruneConn(targetPeerId); refreshPeers();
-      });
-
+      dataConn.on('close', () => { const current = connsRef.current.get(targetPeerId); if (current) current.dc = null; pruneConn(targetPeerId); refreshPeers(); });
       const call = peer.call(targetPeerId, stream, { metadata: { kind: 'camera' } });
       upsertConn(targetPeerId, { mc: call });
       call.on('stream', (remoteStream) => { cbRef.current.onRemoteStream(remoteStream, targetPeerId); setRemoteStreamForPeer(targetPeerId, remoteStream); refreshPeers(); });
-      call.on('close', () => {
-        const current = connsRef.current.get(targetPeerId);
-        if (current) current.mc = null;
-        setRemoteStreamForPeer(targetPeerId, null); pruneConn(targetPeerId); refreshPeers();
-      });
+      call.on('close', () => { const current = connsRef.current.get(targetPeerId); if (current) current.mc = null; setRemoteStreamForPeer(targetPeerId, null); pruneConn(targetPeerId); refreshPeers(); });
       return true;
     } catch (e) { console.error('connectToPeer error:', e); return false; }
   }, [opts.myId, upsertConn, pruneConn, refreshPeers, handleIncomingData, setRemoteStreamForPeer]);
 
-  const connectToHost = useCallback(async (stream: MediaStream) => {
-    return connectToPeer(opts.hostId || opts.roomId, stream);
-  }, [connectToPeer, opts.hostId, opts.roomId]);
-
+  const connectToHost = useCallback(async (stream: MediaStream) => { return connectToPeer(opts.hostId || opts.roomId, stream); }, [connectToPeer, opts.hostId, opts.roomId]);
   const setLocalStream = useCallback((stream: MediaStream) => { localStreamRef.current = stream; }, []);
-
   const startScreenShare = useCallback((stream: MediaStream) => {
     const peer = peerRef.current; if (!peer?.open) return;
     connsRef.current.forEach((conn, peerId) => {
@@ -280,9 +260,7 @@ export function usePeerConnection(opts: Options) {
       call.on('close', () => { const current = connsRef.current.get(peerId); if (current) current.sc = null; });
     });
   }, []);
-
   const stopScreenShare = useCallback(() => { connsRef.current.forEach((conn) => { conn.sc?.close(); conn.sc = null; }); }, []);
-
   const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
     connsRef.current.forEach((conn) => {
       if (conn.mc && conn.mc.peerConnection) {
@@ -291,7 +269,6 @@ export function usePeerConnection(opts: Options) {
       }
     });
   }, []);
-
   const disconnect = useCallback(() => {
     connsRef.current.forEach((conn, peerId) => {
       conn.mc?.close(); conn.sc?.close(); conn.dc?.close();

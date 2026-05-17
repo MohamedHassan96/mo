@@ -53,6 +53,20 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
     name: string, progress: number, status: string, senderName: string, blob?: Blob 
   }>>({});
 
+  const [systemHealth, setSystemHealth] = useState<{ ok: boolean, keys: Record<string, boolean> | null }>({ ok: false, keys: null });
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) setSystemHealth(await res.json());
+      } catch (e) { console.error('Health check failed', e); }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
@@ -306,6 +320,19 @@ export default function RoomPage2({ roomId, role, onLeave }: RoomPageProps) {
             <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_#22C55E]' : 'bg-brand-neon'} animate-pulse`} />
             <span className="text-sm font-bold text-emerald-900/80 dark:text-white/80">{participants.length} {t.onlineCount}</span>
           </div>
+          
+          {/* Pro Health Monitor */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-200 dark:border-white/5">
+            <div className={`w-1.5 h-1.5 rounded-full ${systemHealth.ok ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-[10px] font-black uppercase text-gray-400 dark:text-white/40 tracking-tighter">System Ready</span>
+            {systemHealth.keys && (
+              <div className="flex gap-1 ml-1">
+                {systemHealth.keys.groq && <span className="text-[9px] bg-brand-neon/10 text-brand-neon px-1 rounded">GROQ</span>}
+                {systemHealth.keys.elevenLabs && <span className="text-[9px] bg-brand-neon/10 text-brand-neon px-1 rounded">11LABS</span>}
+              </div>
+            )}
+          </div>
+
           <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-brand-muted dark:text-brand-neon text-sm font-bold rounded-2xl transition-all"><UserPlus className="w-4 h-4" /> {t.inviteBtn}</button>
         </div>
         <div className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-white/10">
