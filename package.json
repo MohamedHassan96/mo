@@ -9,12 +9,14 @@
     "preview": "vite preview",
     "start": "node server.js"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
-    "@types/uuid": "^10.0.0",
     "clsx": "2.1.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "lucide-react": "^1.14.0",
+    "lucide-react": "^0.475.0",
     "peerjs": "^1.5.5",
     "react": "19.2.6",
     "react-dom": "19.2.6",
@@ -22,7 +24,7 @@
     "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5",
     "tailwind-merge": "3.4.0",
-    "uuid": "^14.0.0",
+    "uuid": "^11.0.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
@@ -30,6 +32,7 @@
     "@types/node": "22.19.17",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "@types/uuid": "^11.0.0",
     "@types/ws": "^8.5.10",
     "@vitejs/plugin-react": "5.1.1",
     "tailwindcss": "4.1.17",

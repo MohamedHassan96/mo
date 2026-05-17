@@ -247,6 +247,16 @@ io.on('connection', (socket) => {
   });
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
 const PORT = process.env.PORT || 3001;
+
+// Catch-all to support React Router SPA (MUST be after API routes)
+app.get('*', (req, res) => {
+  const distPath = path.join(__dirname, 'dist', 'index.html');
+  if (fs.existsSync(distPath)) {
+    res.sendFile(distPath);
+  } else {
+    res.status(404).send('Build not found. Please run npm run build.');
+  }
+});
+
 httpServer.listen(PORT, '0.0.0.0', () => console.log(`[TalkBridge Pro] Running on port ${PORT}`));
