@@ -16,7 +16,7 @@ import MeetingControls from '@/ui/MeetingControls';
 import { playJoinSound, playMessageSound } from '@/utils/sounds';
 import {
   Mic, MicOff, Video, VideoOff, Copy, Check, UserPlus, Radio, ArrowRight,
-  Link2, Share2, Users, X, Zap, Sparkles, Activity, AlertTriangle
+  Link2, Share2, Users, X, Zap, Sparkles, Activity, AlertTriangle, Volume2
 } from 'lucide-react';
 import type { ParticipantRole, ChatMessage, Participant, TranscriptEntry } from '@/types';
 
