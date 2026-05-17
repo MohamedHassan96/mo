@@ -34,7 +34,10 @@ class RoomErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
         <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-6 text-center">
           <AlertTriangle className="w-16 h-16 text-red-600 mb-4" />
           <h1 className="text-2xl font-bold text-red-900 mb-2">حدث خطأ في تحميل الغرفة</h1>
-          <p className="text-red-700 mb-4 max-w-md">{this.state.error?.message}</p>
+          <div className="bg-white p-4 rounded-xl border border-red-200 text-left mb-6 max-w-2xl overflow-auto">
+            <p className="text-red-700 font-bold mb-2">Error: {this.state.error?.message}</p>
+            <pre className="text-[10px] text-gray-500 font-mono">{this.state.error?.stack}</pre>
+          </div>
           <button onClick={() => window.location.reload()} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">إعادة المحاولة</button>
         </div>
       );

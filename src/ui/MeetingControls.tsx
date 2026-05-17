@@ -19,6 +19,7 @@ import {
   Settings,
   ChevronUp,
   Camera,
+  RefreshCw,
 } from 'lucide-react';
 import { playScreenShareSound } from '@/utils/sounds';
 
