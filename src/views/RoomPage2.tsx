@@ -315,6 +315,15 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
       console.log('[RoomPage] Starting session...');
       if (customRoomId && customRoomId !== roomId) { window.location.hash = `/room/${customRoomId}`; return; }
       addLog('جاري تشغيل محرك الاتصال...');
+      
+      // Auto-unlock audio if possible during user interaction
+      if (ttsAudioRef.current) {
+        ttsAudioRef.current.play().then(() => {
+          ttsAudioRef.current?.pause();
+          setAudioUnlocked(true);
+        }).catch(e => console.warn('Silent audio unlock failed', e));
+      }
+
       const { config } = useConfigStore.getState();
       if (config.geminiApiKey || config.elevenLabsApiKey) socketUpdateRoomConfig({ geminiApiKey: config.geminiApiKey, elevenLabsApiKey: config.elevenLabsApiKey });
       setPhase('connecting');
@@ -421,15 +430,15 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
       <audio ref={ttsAudioRef} id="tts-audio-player" playsInline style={{ position: 'fixed', opacity: 0, pointerEvents: 'none', left: -9999 }} />
       {showInviteModal && renderInviteModal()}
 
-      {/* Mobile Audio Unlock Overlay */}
+      {/* Auto-hidden audio status (Non-disruptive) */}
       {!audioUnlocked && phase === 'active' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
           <button 
             onClick={unlockAudio}
-            className="bg-brand-neon text-brand-dark px-8 py-4 rounded-[24px] font-black text-lg shadow-2xl flex items-center gap-3 animate-bounce"
+            className="bg-red-500/90 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl flex items-center gap-2"
           >
-            <Volume2 className="w-6 h-6" />
-            تفعيل صوت الترجمة
+            <Volume2 className="w-3 h-3" />
+            اضغط هنا لتفعيل صوت الترجمة
           </button>
         </div>
       )}
