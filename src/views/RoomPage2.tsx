@@ -214,33 +214,36 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
   if (phase === 'connecting') return <div className="min-h-screen flex items-center justify-center bg-[#010b13]"><Activity className="w-12 h-12 text-brand-neon animate-pulse" /></div>;
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-gray-50 dark:bg-[#010b13] overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
-      <audio ref={ttsAudioRef} playsInline style={{ display: 'none' }} />
+    <div className="h-screen max-h-screen flex flex-col bg-gray-50 dark:bg-[#010b13] overflow-hidden fixed inset-0" dir={isRtl ? 'rtl' : 'ltr'}>
+      <audio ref={ttsAudioRef} playsInline crossOrigin="anonymous" style={{ display: 'none' }} />
       {showInviteModal && renderInviteModal()}
 
-      {/* Room Header with Invite Link */}
-      <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between z-40 relative">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/10">
-            <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_10px_#22C55E]' : 'bg-brand-neon'} animate-pulse`} />
-            <span className="text-xs font-bold dark:text-white/80">{participants.length} {t.onlineCount}</span>
+      {/* Room Header */}
+      <div className="bg-white/80 dark:bg-white/5 backdrop-blur-2xl border-b border-gray-200 dark:border-white/10 px-4 py-2.5 flex items-center justify-between z-40 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10">
+            <div className={`w-1.5 h-1.5 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_8px_#22C55E]' : 'bg-brand-neon'} animate-pulse`} />
+            <span className="text-[10px] font-black dark:text-white/80">{participants.length} {t.onlineCount}</span>
           </div>
-          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-4 py-2 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-brand-neon text-xs font-black rounded-2xl transition-all"><UserPlus className="w-4 h-4" /> {t.inviteBtn}</button>
+          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-brand-neon text-[10px] font-black rounded-xl transition-all"><UserPlus className="w-3.5 h-3.5" /> {t.inviteBtn}</button>
         </div>
-        <div className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-2xl border border-gray-200 dark:border-white/10">
-          <span className="text-[10px] font-black dark:text-white/90 uppercase tracking-widest">{getLanguageName(myLanguage)}</span>
-          <ArrowRight className={`w-4 h-4 text-brand-neon ${isRtl ? 'scale-x-[-1]' : ''}`} />
-          <span className="text-[10px] font-black dark:text-white/90 uppercase tracking-widest">{getLanguageName(partnerLanguage)}</span>
+        <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-white/10">
+          <span className="text-[9px] font-black dark:text-white/90 uppercase">{getLanguageName(myLanguage)}</span>
+          <ArrowRight className={`w-3 h-3 text-brand-neon ${isRtl ? 'scale-x-[-1]' : ''}`} />
+          <span className="text-[9px] font-black dark:text-white/90 uppercase">{getLanguageName(partnerLanguage)}</span>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-4 gap-4">
-        <div className="flex-1 min-h-0 rounded-[24px] sm:rounded-[32px] overflow-hidden border border-gray-200 dark:border-white/5 relative bg-white dark:bg-black/40 shadow-xl"><VideoGrid /></div>
-        <div className="lg:w-[400px] lg:h-full rounded-[24px] sm:rounded-[32px] overflow-hidden bg-white dark:bg-bg-dark-900 border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col shrink-0"><SidePanel myId={participantId} myName={name || 'User'} myRole={role} myLanguage={myLanguage} partnerLanguage={partnerLanguage} onSendMessage={(m) => sendChatMessage(m)} /></div>
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-3 gap-3 min-h-0">
+        <div className="flex-1 min-h-0 rounded-[20px] sm:rounded-[28px] overflow-hidden border border-gray-200 dark:border-white/5 relative bg-white dark:bg-black/40 shadow-xl"><VideoGrid /></div>
+        <div className="h-[40%] lg:h-full lg:w-[380px] rounded-[20px] sm:rounded-[28px] overflow-hidden bg-white dark:bg-bg-dark-900 border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col shrink-0"><SidePanel myId={participantId} myName={name || 'User'} myRole={role} myLanguage={myLanguage} partnerLanguage={partnerLanguage} onSendMessage={(m) => sendChatMessage(m)} /></div>
       </div>
-      <MeetingControls roomId={roomId} onEndCall={() => onLeave()} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
+      <div className="shrink-0">
+        <MeetingControls roomId={roomId} onEndCall={() => onLeave()} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
+      </div>
     </div>
   );
+}
 }
 
 export default function RoomPage2(props: RoomPageProps) { return <RoomErrorBoundary><RoomPageContent {...props} /></RoomErrorBoundary>; }
