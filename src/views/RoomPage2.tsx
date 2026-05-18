@@ -235,22 +235,58 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
       <audio ref={ttsAudioRef} playsInline crossOrigin="anonymous" style={{ display: 'none' }} />
       {showInviteModal && renderInviteModal()}
 
-      {/* Premium Navigation Bar */}
-      <header className="h-16 sm:h-20 flex items-center justify-between px-4 sm:px-8 border-b border-white/5 bg-black/20 backdrop-blur-3xl z-50 shrink-0">
+      {/* Premium Header / Invite & Status Bar */}
+      <header className="h-16 sm:h-20 flex items-center justify-between px-4 sm:px-8 border-b border-white/5 bg-black/40 backdrop-blur-3xl z-50 shrink-0">
         <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2.5 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 shadow-inner">
             <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_12px_#22C55E]' : 'bg-brand-neon shadow-[0_0_12px_rgba(163,230,53,1)]'} animate-pulse`} />
             <span className="text-xs font-black text-white tracking-tight">{participants.length} {t.onlineCount}</span>
           </div>
-          <button onClick={() => setShowInviteModal(true)} className="flex items-center gap-2.5 px-5 py-2.5 bg-brand-neon text-brand-dark text-xs font-black rounded-2xl shadow-lg shadow-brand-neon/10 hover:scale-105 transition-all"><UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">{t.inviteBtn}</span></button>
+          <button 
+            onClick={() => setShowInviteModal(true)} 
+            className="flex items-center gap-2.5 px-5 py-2.5 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-brand-neon text-xs font-black rounded-2xl transition-all group"
+          >
+            <UserPlus className="w-4 h-4 group-hover:scale-110 transition-transform" /> 
+            <span>{t.inviteBtn}</span>
+          </button>
+        </div>
+
+        {/* Real-time Status Center (Speaking Now) */}
+        <div className="hidden md:flex flex-1 items-center justify-center px-10">
+          {processingStatus.message ? (
+            <div className="flex items-center gap-3 px-6 py-2.5 rounded-full bg-brand-neon text-brand-dark font-black text-[11px] uppercase tracking-widest shadow-[0_0_20px_rgba(163,230,53,0.3)] animate-in fade-in zoom-in duration-300">
+              <div className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-dark opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-dark"></span>
+              </div>
+              {processingStatus.message}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-white/20 font-black text-[9px] uppercase tracking-[0.3em]">
+              <Sparkles className="w-3 h-3" />
+              Neural Bridge Active
+            </div>
+          )}
         </div>
         
-        <div className="flex items-center gap-3 sm:gap-4 bg-white/5 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl border border-white/10">
-          <span className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-widest">{getLanguageName(myLanguage)}</span>
-          <div className="w-8 h-8 rounded-full bg-brand-neon/10 flex items-center justify-center"><ArrowRight className={`w-4 h-4 text-brand-neon ${isRtl ? 'scale-x-[-1]' : ''}`} /></div>
-          <span className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-widest">{getLanguageName(partnerLanguage)}</span>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 bg-white/5 px-4 sm:px-6 py-2 sm:py-2.5 rounded-2xl border border-white/10">
+            <span className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-widest">{getLanguageName(myLanguage)}</span>
+            <div className="w-6 h-6 rounded-full bg-brand-neon/10 flex items-center justify-center"><ArrowRight className={`w-3 h-3 text-brand-neon ${isRtl ? 'scale-x-[-1]' : ''}`} /></div>
+            <span className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-widest">{getLanguageName(partnerLanguage)}</span>
+          </div>
         </div>
       </header>
+
+      {/* Mobile-only status bar */}
+      {processingStatus.message && (
+        <div className="md:hidden absolute top-20 left-0 right-0 z-[100] flex justify-center p-2">
+           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-brand-neon text-brand-dark font-black text-[9px] uppercase tracking-widest shadow-xl animate-in slide-in-from-top-2">
+              <Activity className="w-3 h-3 animate-bounce" />
+              {processingStatus.message}
+           </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-4 gap-3 sm:gap-6 min-h-0 relative">
