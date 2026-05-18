@@ -15,7 +15,7 @@ import SidePanel from '@/ui/SidePanel';
 import MeetingControls from '@/ui/MeetingControls';
 import {
   Mic, MicOff, Video, VideoOff, Copy, Check, UserPlus, Radio, ArrowRight,
-  X, Zap, Activity, AlertTriangle, Volume2, Users, Shield, Sparkles
+  X, Zap, Activity, AlertTriangle, Volume2, Users, Shield, Sparkles, Link2
 } from 'lucide-react';
 import type { ParticipantRole, ChatMessage, Participant, TranscriptEntry } from '@/types';
 
@@ -27,12 +27,10 @@ class RoomErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 p-6 text-center">
-          <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center mb-6">
-            <AlertTriangle className="w-10 h-10 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-black text-white mb-2">Internal Error</h1>
-          <pre className="text-xs text-red-400 mb-8 max-w-md bg-white/5 p-4 rounded-2xl border border-white/10 overflow-auto">{this.state.error?.message}</pre>
-          <button onClick={() => window.location.reload()} className="px-8 py-3 bg-white text-black rounded-2xl font-black shadow-xl hover:scale-105 transition-transform">Reload Application</button>
+          <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+          <h1 className="text-2xl font-black text-white">System Error</h1>
+          <pre className="text-[10px] text-red-400 mt-4 bg-white/5 p-4 rounded-xl border border-white/10 max-w-md overflow-auto">{this.state.error?.message}</pre>
+          <button onClick={() => window.location.reload()} className="mt-8 px-8 py-3 bg-brand-neon text-brand-dark rounded-xl font-black">Reload</button>
         </div>
       );
     }
@@ -71,8 +69,7 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
 
   const { processRecognizedText } = useRealtimeTranslation();
   const {
-    participants, isMicOn, isCameraOn: isCameraOnStore, localStream, sidePanelOpen,
-    processingStatus,
+    participants, isMicOn, isCameraOn: isCameraOnStore, localStream, sidePanelOpen, processingStatus,
     setMicOn, setCameraOn, addParticipant, updateParticipant, removeParticipant,
     addChatMessage, setMyId, setProcessingStatus, createRoom, leaveRoom, setRemoteStream
   } = useRoomStore();
@@ -81,7 +78,7 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
 
   const unlockAudio = useCallback(() => {
     if (ttsAudioRef.current) {
-      ttsAudioRef.current.play().then(() => { ttsAudioRef.current?.pause(); }).catch(() => {});
+      ttsAudioRef.current.play().then(() => { ttsAudioRef.current?.pause(); console.log('🔊 Audio Unlocked'); }).catch(() => {});
     }
   }, []);
 
@@ -96,9 +93,9 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
   const handleTranslatedAudio = useCallback((data: any) => {
     useRoomStore.getState().updateTranscript(data.originalId, { translatedText: data.translatedText, translatedLanguage: data.translatedLanguage });
     if (!data.audioBase64) return;
-    setProcessingStatus({ stage: 'synthesizing', message: t.synthesizingStatus?.(data.speakerName) });
+    setProcessingStatus({ stage: 'synthesizing', message: `${data.speakerName} يتحدث الآن...` });
     const afterPlay = () => {
-      if (shouldListenRef.current) { startListeningRef.current?.(); setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); }
+      if (shouldListenRef.current) { startListeningRef.current?.(); setProcessingStatus({ stage: 'listening', message: '' }); }
       else setProcessingStatus({ stage: 'idle', message: '' });
     };
     const audio = ttsAudioRef.current;
@@ -108,7 +105,7 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
       audio.onended = afterPlay; audio.onerror = afterPlay;
       audio.play().catch(afterPlay);
     }
-  }, [setProcessingStatus, t]);
+  }, [setProcessingStatus]);
 
   const { sendChatMessage, sendTranscript, disconnect: socketDisconnect } = useSocketRoom({
     roomId: normalizedRoomId,
@@ -124,14 +121,17 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
     onParticipantUpdate: (p) => updateParticipant(p.id, p),
     onParticipantLeft: (pid) => removeParticipant(pid),
     onTranscriptReceived: (tr) => useRoomStore.getState().addTranscript(tr),
-    onConnectionChange: (connected) => { if (connected) console.log('📡 Peer Connected'); }
+    onConnectionChange: (c) => console.log('📡 Peer:', c)
   });
 
   const handleSpeechResult = useCallback(async (text: string, isFinal: boolean) => {
+    if (!isFinal) setProcessingStatus({ stage: 'listening', message: 'أنت تتحدث الآن...' });
+    else setProcessingStatus({ stage: 'idle', message: '' });
+    
     processRecognizedText(text, isFinal, { speakerId: participantId, speakerName: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), speakerRole: role, sourceLanguage: myLanguage, targetLanguage: partnerLanguage }, (entry) => {
       sendTranscript(entry);
     });
-  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, sendTranscript]);
+  }, [processRecognizedText, participantId, name, role, myLanguage, partnerLanguage, sendTranscript, setProcessingStatus]);
 
   const { isListening, isSupported, startListening, stopListening } = useSpeechToText({ language: myLanguage, onResult: handleSpeechResult });
 
@@ -149,16 +149,16 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
     addParticipant({ id: participantId, peerId: myPeerId, name: name || (role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder), role, language: myLanguage, isMicOn: enableMic, isCameraOn: enableCamera, isScreenSharing: false, isConnected: true });
     setMicOn(enableMic); setCameraOn(enableCamera);
     await startAudio(); if (enableCamera) await startCamera();
-    if (enableMic && isSupported) { setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); shouldListenRef.current = true; startListening(); }
+    if (enableMic && isSupported) { shouldListenRef.current = true; startListening(); }
     setTimeout(() => setPhase('active'), 1200);
-  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, setProcessingStatus, t, customRoomId, roomId, myPeerId, unlockAudio]);
+  }, [participantId, name, role, myLanguage, enableMic, enableCamera, addParticipant, startAudio, startCamera, isSupported, startListening, setMicOn, setCameraOn, customRoomId, roomId, myPeerId, unlockAudio]);
 
   const handleToggleMic = useCallback(() => {
     const next = !isMicOn;
-    if (next) { shouldListenRef.current = true; startListening(); setProcessingStatus({ stage: 'listening', message: t.listeningStatus }); }
-    else { shouldListenRef.current = false; stopListening(); setProcessingStatus({ stage: 'idle', message: '' }); }
+    if (next) { shouldListenRef.current = true; startListening(); }
+    else { shouldListenRef.current = false; stopListening(); }
     setMicOn(next); setEnableMic(next); updateParticipant(participantId, { isMicOn: next });
-  }, [isMicOn, startListening, stopListening, setMicOn, setProcessingStatus, updateParticipant, participantId, t]);
+  }, [isMicOn, startListening, stopListening, setMicOn, updateParticipant, participantId]);
 
   const handleToggleCamera = useCallback(async () => {
     const next = !isCameraOnStore; setEnableCamera(next); setCameraOn(next);
@@ -168,26 +168,18 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
   }, [isCameraOnStore, setCameraOn, updateParticipant, participantId, startCamera, stopCamera, replaceVideoTrack]);
 
   const renderInviteModal = () => (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setShowInviteModal(false)}>
-      <div className="relative w-full max-w-lg bg-gray-900 border border-white/10 rounded-[32px] p-8 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="absolute top-0 right-0 p-8 opacity-10"><Users className="w-32 h-32 text-white" /></div>
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-brand-neon/20 flex items-center justify-center border border-brand-neon/20"><Users className="w-7 h-7 text-brand-neon" /></div>
-              <div><h3 className="text-xl font-black text-white">{t.inviteModalTitle}</h3><p className="text-sm text-white/50 font-bold">{participants.length} {t.inviteModalActive}</p></div>
-            </div>
-            <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X className="w-6 h-6 text-white/30" /></button>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 animate-in fade-in" onClick={() => setShowInviteModal(false)}>
+      <div className="relative w-full max-w-lg bg-gray-900 border border-white/10 rounded-[32px] p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-8">
+           <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-2xl bg-brand-neon/20 flex items-center justify-center"><Users className="w-6 h-6 text-brand-neon" /></div><div><h3 className="text-xl font-black text-white">{t.inviteModalTitle}</h3><p className="text-sm text-white/50 font-bold">{participants.length} {t.inviteModalActive}</p></div></div>
+           <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-6 h-6 text-white/30" /></button>
+        </div>
+        <div className="space-y-6">
+          <div className="bg-black/40 border border-white/5 rounded-2xl p-5 flex items-center justify-between gap-4 group cursor-pointer hover:border-brand-neon/30 transition-all" onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 3000); }}>
+            <p className="text-sm font-mono text-white/70 truncate select-all" dir="ltr">{`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`}</p>
+            <Copy className={`w-5 h-5 shrink-0 ${copied ? 'text-green-500' : 'text-brand-neon'}`} />
           </div>
-          <div className="space-y-6">
-            <div className="bg-black/40 border border-white/5 rounded-[22px] p-6 flex items-center justify-between gap-4 group cursor-pointer hover:border-brand-neon/30 transition-all" onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 3000); }}>
-              <p className="text-sm font-mono text-white/70 truncate select-all" dir="ltr">{`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`}</p>
-              <Copy className={`w-5 h-5 shrink-0 transition-colors ${copied ? 'text-green-500' : 'text-brand-neon'}`} />
-            </div>
-            <button onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 3000); }} className={`w-full py-5 rounded-[22px] font-black flex items-center justify-center gap-3 transition-all ${copied ? 'bg-green-600 text-white' : 'bg-brand-neon text-brand-dark shadow-xl shadow-brand-neon/20 hover:scale-[1.02]'}`}>
-              {copied ? <><Check className="w-5 h-5" /> {t.linkCopied}</> : <><Copy className="w-5 h-5" /> {t.copyRoomLinkBtn}</>}
-            </button>
-          </div>
+          <button onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 3000); }} className={`w-full py-5 rounded-[22px] font-black flex items-center justify-center gap-3 transition-all ${copied ? 'bg-green-600 text-white' : 'bg-brand-neon text-brand-dark shadow-xl'}`}>{copied ? <><Check className="w-5 h-5" /> {t.linkCopied}</> : <><Copy className="w-5 h-5" /> {t.copyRoomLinkBtn}</>}</button>
         </div>
       </div>
     </div>
@@ -197,34 +189,17 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
     <div className="relative min-h-[100dvh] flex items-center justify-center p-4 bg-[#010b13] overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-neon/5 blur-[120px] rounded-full" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full" />
-      
       <div className="relative z-10 w-full max-w-5xl grid lg:grid-cols-2 gap-8 lg:gap-12 items-center animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="relative aspect-video lg:aspect-square rounded-[40px] overflow-hidden bg-black/40 border border-white/10 shadow-2xl group flex items-center justify-center">
           <video ref={localVideoRef} autoPlay muted playsInline className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-500 ${enableCamera ? 'opacity-100' : 'opacity-0'}`} />
           {!enableCamera && <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-black"><div className="w-32 h-32 rounded-[40px] bg-white/5 border border-white/10 flex items-center justify-center text-6xl font-black text-brand-neon shadow-2xl animate-pulse">{(name || 'U')[0]}</div></div>}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 bg-black/40 backdrop-blur-2xl p-3 rounded-[30px] border border-white/10 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => setEnableMic(!enableMic)} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${enableMic ? 'bg-white/10 text-white' : 'bg-red-500 text-white shadow-lg shadow-red-500/30'}`}>{enableMic ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}</button>
-            <button onClick={() => setEnableCamera(!enableCamera)} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${enableCamera ? 'bg-white/10 text-white' : 'bg-red-500 text-white shadow-lg shadow-red-500/30'}`}>{enableCamera ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}</button>
-          </div>
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 bg-black/40 backdrop-blur-2xl p-3 rounded-[30px] border border-white/10 shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => setEnableMic(!enableMic)} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${enableMic ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>{enableMic ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}</button><button onClick={() => setEnableCamera(!enableCamera)} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${enableCamera ? 'bg-white/10 text-white' : 'bg-red-500 text-white'}`}>{enableCamera ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}</button></div>
         </div>
-        
-        <div className="flex flex-col space-y-8">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-neon/10 border border-brand-neon/20 text-brand-neon text-xs font-black uppercase tracking-widest"><Shield className="w-3 h-3" /> Encrypted Session</div>
-            <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h1>
-            <p className="text-white/40 font-medium text-lg">{t.roomSetupDesc}</p>
+        <div className="flex flex-col space-y-8"><div className="space-y-3"><div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-neon/10 border border-brand-neon/20 text-brand-neon text-xs font-black uppercase tracking-widest"><Shield className="w-3 h-3" /> Encrypted Session</div><h1 className="text-4xl lg:text-5xl font-black text-white leading-tight">{role === 'host' ? t.roomSetupTitle : t.roomJoinTitle}</h1><p className="text-white/40 font-medium text-lg">{t.roomSetupDesc}</p></div>
+          <div className="space-y-5"><div className="space-y-2"><label className="text-xs font-black text-white/40 uppercase tracking-widest px-1">{t.nameLabel}</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} className="w-full px-6 py-4 rounded-[24px] bg-white/5 border border-white/10 text-white text-lg font-bold outline-none focus:border-brand-neon/50 focus:bg-white/10 transition-all" /></div>
+            <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><label className="text-xs font-black text-white/40 uppercase tracking-widest px-1">Source</label><LanguageSelector value={myLanguage} onChange={setMyLanguage} label="" /></div><div className="space-y-2"><label className="text-xs font-black text-white/40 uppercase tracking-widest px-1">Target</label><LanguageSelector value={partnerLanguage} onChange={setPartnerLanguage} label="" /></div></div>
           </div>
-          <div className="space-y-5">
-            <div className="space-y-2"><label className="text-xs font-black text-white/40 uppercase tracking-widest px-1">{t.nameLabel}</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={role === 'host' ? t.hostNamePlaceholder : t.guestNamePlaceholder} className="w-full px-6 py-4 rounded-[24px] bg-white/5 border border-white/10 text-white text-lg font-bold outline-none focus:border-brand-neon/50 focus:bg-white/10 transition-all" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><label className="text-xs font-black text-white/40 uppercase tracking-widest px-1">Source</label><LanguageSelector value={myLanguage} onChange={setMyLanguage} label="" /></div>
-              <div className="space-y-2"><label className="text-xs font-black text-white/40 uppercase tracking-widest px-1">Target</label><LanguageSelector value={partnerLanguage} onChange={setPartnerLanguage} label="" /></div>
-            </div>
-          </div>
-          <button onClick={handleStartSession} className="group relative w-full py-6 bg-brand-neon text-brand-dark rounded-[30px] text-xl font-black shadow-2xl shadow-brand-neon/20 overflow-hidden transition-all hover:scale-[1.02] active:scale-95">
-            <span className="relative z-10 flex items-center justify-center gap-3">START MEETING <Zap className="w-6 h-6" /></span>
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-          </button>
+          <button onClick={handleStartSession} className="group relative w-full py-6 bg-brand-neon text-brand-dark rounded-[30px] text-xl font-black shadow-2xl shadow-brand-neon/20 overflow-hidden transition-all hover:scale-[1.02] active:scale-95"><span className="relative z-10 flex items-center justify-center gap-3">START MEETING <Zap className="w-6 h-6" /></span><div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" /></button>
         </div>
       </div>
     </div>
@@ -237,81 +212,56 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
       <audio ref={ttsAudioRef} playsInline crossOrigin="anonymous" style={{ display: 'none' }} />
       {showInviteModal && renderInviteModal()}
 
-      {/* ─── PREMIUM COMMAND CENTER (HEADER) ─── */}
-      <header className="h-16 sm:h-20 flex items-center justify-between px-3 sm:px-6 border-b border-white/5 bg-black/20 backdrop-blur-3xl z-50 shrink-0 shadow-2xl">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10 shadow-inner">
-            <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_12px_#22C55E]' : 'bg-brand-neon shadow-[0_0_12px_rgba(163,230,53,1)]'} animate-pulse`} />
-            <span className="text-[10px] sm:text-xs font-black text-white tracking-tight">{participants.length} {t.onlineCount}</span>
-          </div>
-          
-          <button 
-            onClick={() => setShowInviteModal(true)} 
-            className="flex items-center gap-2 px-3 py-1.5 sm:px-5 sm:py-2.5 bg-brand-neon text-brand-dark text-[10px] sm:text-xs font-black rounded-xl shadow-lg shadow-brand-neon/10 hover:scale-105 active:scale-95 transition-all group"
-          >
-            <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:rotate-12 transition-transform" /> 
-            <span>{t.inviteBtn}</span>
-          </button>
-        </div>
-
-        {/* Neural Bridge Status (Speaking Now) */}
-        <div className="flex-1 flex items-center justify-center max-w-[40%] sm:max-w-md mx-2 sm:mx-4">
-          {processingStatus?.message ? (
-            <div className="flex items-center gap-2 sm:gap-3 px-4 py-2 sm:px-6 sm:py-2.5 rounded-full bg-brand-neon text-brand-dark font-black text-[9px] sm:text-[11px] uppercase tracking-widest shadow-[0_0_20px_rgba(163,230,53,0.3)] animate-in zoom-in duration-300">
-              <div className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-dark opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-dark"></span>
+      {/* ─── PRO INVITE & STATUS BAR (TOP) ─── */}
+      <div className="bg-brand-neon/10 border-b border-brand-neon/20 px-4 py-2 sm:py-3 flex items-center justify-between z-50 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-white/10 shadow-inner">
+                  <div className={`w-2 h-2 rounded-full ${participants.length > 1 ? 'bg-green-500 shadow-[0_0_12px_#22C55E]' : 'bg-brand-neon'} animate-pulse`} />
+                  <span className="text-[10px] sm:text-xs font-black text-white tracking-tight">{participants.length} {t.onlineCount}</span>
               </div>
-              <span className="truncate">{processingStatus.message}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-white/10 font-black text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em]">
-              <Sparkles className="w-3 h-3" />
-              <span className="hidden xs:inline">Neural Bridge Active</span>
-              <span className="xs:hidden">Active</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-3 bg-white/5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10">
-            <span className="text-[8px] sm:text-[10px] font-black text-white/90 uppercase">{getLanguageName(myLanguage)}</span>
-            <div className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-brand-neon/10 flex items-center justify-center">
-              <ArrowRight className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-brand-neon ${isRtl ? 'scale-x-[-1]' : ''}`} />
-            </div>
-            <span className="text-[8px] sm:text-[10px] font-black text-white/90 uppercase">{getLanguageName(partnerLanguage)}</span>
+              <div className="hidden md:flex items-center gap-2 bg-black/40 px-4 py-1.5 rounded-full border border-white/10 group cursor-pointer hover:border-brand-neon/50 transition-all" onClick={async () => { await navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/room/${normalizedRoomId}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                  <Link2 className={`w-3 h-3 ${copied ? 'text-green-500' : 'text-brand-neon'}`} />
+                  <span className="text-[10px] font-mono text-white/40 truncate max-w-[150px]">{window.location.href.split('#')[0]}#/room/{normalizedRoomId}</span>
+                  {copied && <span className="text-[9px] font-black text-green-500 uppercase ml-1">Copied!</span>}
+              </div>
           </div>
-        </div>
-      </header>
 
-      {/* ─── MAIN CONTENT ─── */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-4 gap-3 sm:gap-4 min-h-0 relative">
-        <div className="flex-1 min-h-0 rounded-[20px] sm:rounded-[32px] overflow-hidden border border-white/5 relative bg-black/40 shadow-2xl group transition-all duration-500">
-          <VideoGrid />
+          {/* Real-time "Speaking Now" Center */}
+          <div className="flex-1 flex items-center justify-center px-4">
+            {processingStatus?.message ? (
+              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-neon text-brand-dark font-black text-[9px] sm:text-[10px] uppercase tracking-widest shadow-xl animate-in zoom-in duration-300">
+                <div className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-dark opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-dark"></span>
+                </div>
+                {processingStatus.message}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-white/10 font-black text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.4em]">
+                <Sparkles className="w-3 h-3" />
+                <span className="hidden xs:inline">Neural Bridge Active</span>
+                <span className="xs:hidden">Ready</span>
+              </div>
+            )}
+          </div>
           
-          {/* Mobile Speaking Indicator Overlay */}
-          {processingStatus?.message && (
-            <div className="lg:hidden absolute top-4 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
-               <div className="bg-brand-neon text-brand-dark px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-2xl flex items-center gap-2">
-                  <Activity className="w-3 h-3 animate-bounce" />
-                  {processingStatus.message}
-               </div>
-            </div>
-          )}
-        </div>
-
-        <aside className={`${sidePanelOpen ? 'fixed inset-0 top-[64px] sm:top-[80px] z-[60] flex' : 'hidden'} lg:relative lg:inset-auto lg:flex lg:w-[380px] lg:h-full rounded-[20px] sm:rounded-[32px] overflow-hidden bg-gray-900/95 lg:bg-black/20 backdrop-blur-3xl lg:backdrop-blur-none border border-white/10 shadow-2xl flex flex-col shrink-0 transition-all duration-500`}>
-          <div className="lg:hidden absolute top-4 right-4 z-[70]">
-            <button onClick={() => useRoomStore.getState().toggleSidePanel()} className="p-3 bg-white/5 rounded-full border border-white/10 text-white shadow-xl active:scale-90 transition-transform"><X className="w-6 h-6" /></button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowInviteModal(true)} className="bg-brand-neon text-brand-dark px-4 py-1.5 rounded-full text-[10px] font-black uppercase shadow-lg hover:scale-105 active:scale-95 transition-all">
+                {t.inviteBtn}
+            </button>
           </div>
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden p-2 sm:p-4 gap-3 sm:gap-4 min-h-0 relative">
+        <div className="flex-1 min-h-0 rounded-[20px] sm:rounded-[32px] overflow-hidden border border-white/5 relative bg-black/40 shadow-2xl group transition-all duration-500"><VideoGrid /></div>
+        <aside className={`${sidePanelOpen ? 'fixed inset-0 top-[48px] sm:top-[60px] z-[60] flex' : 'hidden'} lg:relative lg:inset-auto lg:flex lg:w-[380px] lg:h-full rounded-[20px] sm:rounded-[32px] overflow-hidden bg-gray-900/95 lg:bg-black/20 backdrop-blur-3xl lg:backdrop-blur-none border border-white/10 shadow-2xl flex flex-col shrink-0 transition-all duration-500`}>
+          <div className="lg:hidden absolute top-4 right-4 z-[70]"><button onClick={() => useRoomStore.getState().toggleSidePanel()} className="p-3 bg-white/5 rounded-full border border-white/10 text-white shadow-xl"><X className="w-6 h-6" /></button></div>
           <SidePanel myId={participantId} myName={name || 'User'} myRole={role} myLanguage={myLanguage} partnerLanguage={partnerLanguage} onSendMessage={(m) => sendChatMessage(m)} />
         </aside>
       </main>
 
-      {/* ─── CONTROLS ─── */}
-      <footer className="shrink-0 p-2 sm:p-4 bg-transparent">
-        <MeetingControls roomId={roomId} onEndCall={() => onLeave()} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} />
-      </footer>
+      <footer className="shrink-0 p-2 sm:p-4 bg-transparent"><MeetingControls roomId={roomId} onEndCall={() => onLeave()} onToggleMic={handleToggleMic} onToggleCamera={handleToggleCamera} /></footer>
     </div>
   );
 }
