@@ -244,6 +244,5 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
     </div>
   );
 }
-}
 
 export default function RoomPage2(props: RoomPageProps) { return <RoomErrorBoundary><RoomPageContent {...props} /></RoomErrorBoundary>; }
