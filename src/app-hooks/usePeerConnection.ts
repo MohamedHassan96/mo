@@ -262,13 +262,38 @@ export function usePeerConnection(opts: Options) {
   }, []);
   const stopScreenShare = useCallback(() => { connsRef.current.forEach((conn) => { conn.sc?.close(); conn.sc = null; }); }, []);
   const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
-    connsRef.current.forEach((conn) => {
+    connsRef.current.forEach((conn, peerId) => {
       if (conn.mc && conn.mc.peerConnection) {
         const sender = conn.mc.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
-        if (sender) sender.replaceTrack(track).catch(console.error);
+        if (sender) {
+          sender.replaceTrack(track).catch(console.error);
+          return;
+        }
       }
+
+      const peer = peerRef.current;
+      if (!track || !peer?.open || !conn.dc?.open) return;
+
+      conn.mc?.close();
+      const stream = new MediaStream([track]);
+      localStreamRef.current = stream;
+      const call = peer.call(peerId, stream, { metadata: { kind: 'camera' } });
+      conn.mc = call;
+      call.on('stream', (remoteStream) => {
+        cbRef.current.onRemoteStream(remoteStream, peerId);
+        setRemoteStreamForPeer(peerId, remoteStream);
+        refreshPeers();
+      });
+      call.on('close', () => {
+        const current = connsRef.current.get(peerId);
+        if (current) current.mc = null;
+        setRemoteStreamForPeer(peerId, null);
+        pruneConn(peerId);
+        refreshPeers();
+      });
     });
-  }, []);
+  }, [pruneConn, refreshPeers, setRemoteStreamForPeer]);
+
   const disconnect = useCallback(() => {
     connsRef.current.forEach((conn, peerId) => {
       conn.mc?.close(); conn.sc?.close(); conn.dc?.close();

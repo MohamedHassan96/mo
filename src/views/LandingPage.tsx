@@ -12,6 +12,7 @@ import {
   MonitorUp,
   Users,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -127,6 +128,8 @@ export default function LandingPage({ onCreateRoom, onJoinRoom }: LandingPagePro
               </form>
 
             </div>
+
+
 
             {/* How it works */}
             <div className="animate-fade-up delay-500 mt-12 sm:mt-20 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">

@@ -14,7 +14,7 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'ko', name: 'Korean', nativeName: '한국어', direction: 'ltr', ttsCode: 'ko' },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', direction: 'ltr', ttsCode: 'hi' },
   { code: 'ur', name: 'Urdu', nativeName: 'اردو', direction: 'rtl', ttsCode: 'ur' },
-  { code: 'fa', name: 'Persian', nativeName: 'فارسی', direction: 'rtl', ttsCode: 'fa' },
+  { code: 'fa', name: 'Persian', nativeName: 'فارسي', direction: 'rtl', ttsCode: 'fa' },
 ];
 
 export function getLanguageByCode(code: string): Language | undefined {

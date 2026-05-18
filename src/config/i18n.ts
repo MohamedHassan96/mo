@@ -54,6 +54,7 @@ export type UITranslations = {
   inviteModalTitle: string;
   inviteModalActive: string;
   copyRoomLinkBtn: string;
+  copyRoomCodeBtn: string;
   shareBtn: string;
 
   // Settings Modal
@@ -78,17 +79,6 @@ export type UITranslations = {
   videoGridExpand: string;
   videoGridWaiting: string;
   videoGridSharePrompt: string;
-  settingsReady: string;
-  settingsReadyDesc: string;
-  settingsAudioProvider: string;
-  settingsEgyptVoice: string;
-  settingsNormalVoice: string;
-  settingsLocalVoice: string;
-  settingsEgyptDesc: string;
-  settingsNormalDesc: string;
-  settingsLocalDesc: string;
-  settingsVoiceId: string;
-  settingsSave: string;
 
   // Panels
   tabChat: string;
@@ -120,26 +110,16 @@ export type UITranslations = {
 
   // Header / Common
   themeToggleTooltipDark: string;
-  settingsReady: string;
-  settingsReadyDesc: string;
-  settingsAudioProvider: string;
-  settingsEgyptVoice: string;
-  settingsNormalVoice: string;
-  settingsLocalVoice: string;
-  settingsEgyptDesc: string;
-  settingsNormalDesc: string;
-  settingsLocalDesc: string;
-  settingsVoiceId: string;
-  settingsSave: string;
-
-  // Header / Common
-  themeToggleTooltipDark: string;
   themeToggleTooltipLight: string;
   langToggleTooltip: string;
   siteLangLabel: string;
 };
 
-const translations: Record<string, UITranslations> = {
+const HindiTranslationLabel = 'अनुवाद:';
+const HindiParticipantsTitle = 'प्रतिभागी';
+const HindiParticipantGuest = 'अतिथि';
+
+const translations: Record<string, Partial<UITranslations>> = {
   en: {
     tagline: 'TalkBridge',
     heroTitle: 'Meetings Without',
@@ -165,7 +145,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'Online', inviteBtn: 'Invite', listeningStatus: 'Listening...', errorStatus: 'Error',
     synthesizingStatus: (name) => `🔊 ${name} is speaking...`,
     inviteModalTitle: 'Invite to join', inviteModalActive: 'currently online',
-    copyRoomLinkBtn: 'Copy Link', shareBtn: 'Share',
+    copyRoomLinkBtn: 'Copy Link', copyRoomCodeBtn: 'Copy Room Code', shareBtn: 'Share',
     // Settings Modal
     settingsTitle: 'Settings',
     settingsReady: 'Ready to use! ✨',
@@ -245,7 +225,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'متصل', inviteBtn: 'دعوة', listeningStatus: 'جاري الاستماع...', errorStatus: 'خطأ',
     synthesizingStatus: (name) => `🔊 ${name} يتحدث...`,
     inviteModalTitle: 'دعوة للمشاركة', inviteModalActive: 'متصلون حالياً',
-    copyRoomLinkBtn: 'نسخ الرابط', shareBtn: 'مشاركة',
+    copyRoomLinkBtn: 'نسخ الرابط', copyRoomCodeBtn: 'نسخ كود الغرفة', shareBtn: 'مشاركة',
 
     settingsTitle: 'الإعدادات', settingsReady: 'جاهز للاستخدام! ✨', settingsReadyDesc: 'كل الإعدادات مضبوطة',
     settingsAudioProvider: 'مزود الصوت', settingsEgyptVoice: '🇪🇬 مصري', settingsNormalVoice: '🔊 عادي', settingsLocalVoice: '🖥️ محلي',
@@ -275,7 +255,7 @@ const translations: Record<string, UITranslations> = {
     featuresLabel: '// ویژگی‌ها', footerDesc: 'جلسات ویدیویی با ترجمه همزمان، بدون موانع زبانی.',
     feat1Title: 'تماس‌های ویدیویی HD', feat1Desc: 'تماس‌های ویدیویی با کیفیت بالا',
     feat2Title: 'ترجمه صوتی همزمان', feat2Desc: 'شما به زبان خود صحبت می‌کنید، دیگران به زبان خودشان می‌شنوند',
-    feat3Title: 'اشتراک گذاری صفحه', feat3Desc: 'صفحه خود را با یک کلیک به اشتراک بگذارید',
+    feat3Title: 'اشتراک گذاری صفحه', feat3Desc: 'صفحة خود را با یک کلیک به اشتراک بگذارید',
     feat4Title: 'چت ترجمه شده', feat4Desc: 'پیام‌های متنی با ترجمه خودکار',
     feat5Title: 'بیش از ۱۳ زبان', feat5Desc: 'فارسی، عربی، انگلیسی و بیشتر',
     feat6Title: 'سرعت رعد و برق', feat6Desc: 'ترجمه فوری با هوش مصنوعی',
@@ -314,12 +294,12 @@ const translations: Record<string, UITranslations> = {
     heroDesc: 'TalkBridge ویڈیو کالز کو ریئل ٹائم صوتی ترجمے کے ساتھ جوڑتا ہے۔ اپنی زبان میں بات کریں، دوسرا فوراً اپنی زبان میں سنے گا۔',
     badgeHD: 'HD ویڈیو', badgeLink: 'صرف ایک دعوتی لنک', badgeTranslate: 'فوری ترجمہ',
     createRoom: 'نیا کمرہ بنائیں', joinPlaceholder: 'کمرے کا کوڈ درج کریں',
-    step1: 'میٹنگ شروع کریں', step2: 'لنک شیئر کریں', step3: 'اپنی زبان بولیں', step4: 'وہ سمجھتے ہیں',
+    step1: 'میٹنگ شروع کریں', step2: 'لنک شیئر کریں', step3: 'अपनी زبان بولیں', step4: 'وہ سمجھتے ہیں',
     featuresLabel: '// خصوصیات', footerDesc: 'زبان کی رکاوٹوں کے بغیر ریئل ٹائم ترجمہ کے ساتھ ویڈیو میٹنگز۔',
-    feat1Title: 'HD ویڈیو کالز', feat1Desc: 'کیمرے اور آڈیو کے ساتھ اعلیٰ معیار کی ویڈیو کالز',
+    feat1Title: 'HD ویڈیو کالز', feat1Desc: 'کیمرے اور آڈیو کے साथ اعلیٰ معیار کی ویڈیو کالز',
     feat2Title: 'فوری صوتی ترجمہ', feat2Desc: 'آپ اپنی زبان میں بات کریں، دوسرے اپنی میں سنیں',
-    feat3Title: 'اسکرین شیئرنگ', feat3Desc: 'اپنی اسکرین کو ایک کلک سے شیئر کریں',
-    feat4Title: 'ترجمہ شدہ چیٹ', feat4Desc: 'خودکار ترجمے کے ساتھ ٹیکسٹ پیغامات',
+    feat3Title: 'اسکرین شیئرنگ', feat3Desc: 'अपनी اسکرین کو ایک کلک سے شیئر کریں',
+    feat4Title: 'ترجمہ شدہ چیٹ', feat4Desc: 'خودکار ترجمے کے साथ ٹیکسٹ پیغامات',
     feat5Title: '13+ زبانیں', feat5Desc: 'اردو، عربی، انگریزی، اور مزید',
     feat6Title: 'تیز رفتار', feat6Desc: 'AI کی طاقت سے فوری ترجمہ',
     roomSetupTitle: 'کمرے کی ترتیب', roomJoinTitle: 'کمرے میں شامل ہوں', roomSetupDesc: 'فوری ترجمہ شدہ گفتگو کے لیے تیار ہو جائیں',
@@ -328,7 +308,7 @@ const translations: Record<string, UITranslations> = {
     startButtonHost: 'کمرہ بنائیں اور جڑیں', startButtonGuest: 'ابھی شامل ہوں',
     waitingForGuest: 'مہمان کا انتظار ہے...', connectingSecurely: 'محفوظ طریقے سے جڑ رہا ہے...',
     establishingP2P: 'خفیہ کاری شدہ P2P ٹنل قائم کیا جا رہا ہے',
-    shareLinkPrompt: 'یہ لنک اپنے مہمان کے ساتھ شیئر کریں:', copyLink: 'لنک کاپی کریں', linkCopied: '✓ کامیابی سے کاپی ہو گیا',
+    shareLinkPrompt: 'یہ لنک اپنے مہمان کے साथ شیئر کریں:', copyLink: 'لنک کاپی کریں', linkCopied: '✓ کامیابی سے کاپی ہو گیا',
     onlineCount: 'آن لائن', inviteBtn: 'دعوت دیں', listeningStatus: 'سن رہا ہے...', errorStatus: 'غلطی',
     synthesizingStatus: (name) => `🔊 ${name} بول رہے ہیں...`,
     inviteModalTitle: 'شامل ہونے کی دعوت', inviteModalActive: 'اس وقت آن لائن',
@@ -373,7 +353,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'En línea', inviteBtn: 'Invitar', listeningStatus: 'Escuchando...', errorStatus: 'Error',
     synthesizingStatus: (name) => `🔊 ${name} está hablando...`,
     inviteModalTitle: 'Invitar a unirse', inviteModalActive: 'actualmente en línea',
-    copyRoomLinkBtn: 'Copiar enlace', shareBtn: 'Compartir',
+    copyRoomLinkBtn: 'Copiar enlace', copyRoomCodeBtn: 'Copiar código', shareBtn: 'Compartir',
     themeToggleTooltipDark: 'Modo claro', themeToggleTooltipLight: 'Modo oscuro',
     langToggleTooltip: 'Cambiar idioma del sitio', siteLangLabel: 'Idioma del sitio',
 
@@ -414,7 +394,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'En ligne', inviteBtn: 'Inviter', listeningStatus: 'Écoute...', errorStatus: 'Erreur',
     synthesizingStatus: (name) => `🔊 ${name} parle...`,
     inviteModalTitle: 'Inviter à rejoindre', inviteModalActive: 'actuellement en ligne',
-    copyRoomLinkBtn: 'Copier le lien', shareBtn: 'Partager',
+    copyRoomLinkBtn: 'Copier le lien', copyRoomCodeBtn: 'Copier le code', shareBtn: 'Partager',
     themeToggleTooltipDark: 'Mode clair', themeToggleTooltipLight: 'Mode sombre',
     langToggleTooltip: 'Changer la langue du site', siteLangLabel: 'Langue du site',
 
@@ -455,7 +435,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'Online', inviteBtn: 'Einladen', listeningStatus: 'Hört zu...', errorStatus: 'Fehler',
     synthesizingStatus: (name) => `🔊 ${name} spricht...`,
     inviteModalTitle: 'Zum Beitreten einladen', inviteModalActive: 'derzeit online',
-    copyRoomLinkBtn: 'Link kopieren', shareBtn: 'Teilen',
+    copyRoomLinkBtn: 'Link kopieren', copyRoomCodeBtn: 'Raumcode kopieren', shareBtn: 'Teilen',
     settingsTitle: 'Einstellungen', settingsReady: 'Einsatzbereit! ✨', settingsReadyDesc: 'Alle Einstellungen sind konfiguriert',
     settingsAudioProvider: 'Audio-Anbieter', settingsEgyptVoice: '🇪🇬 Ägyptisch', settingsNormalVoice: '🔊 Normal', settingsLocalVoice: '🖥️ Lokal',
     settingsEgyptDesc: '✨ Natürliche ägyptisch-arabische Stimme', settingsNormalDesc: 'Integrierte Browser-Stimme', settingsLocalDesc: 'Lokaler Server erforderlich',
@@ -496,7 +476,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'Online', inviteBtn: 'Invita', listeningStatus: 'In ascolto...', errorStatus: 'Errore',
     synthesizingStatus: (name) => `🔊 ${name} sta parlando...`,
     inviteModalTitle: 'Invita a partecipare', inviteModalActive: 'online ora',
-    copyRoomLinkBtn: 'Copia Link', shareBtn: 'Condividi',
+    copyRoomLinkBtn: 'Copia Link', copyRoomCodeBtn: 'Copia Codice', shareBtn: 'Condividi',
     themeToggleTooltipDark: 'Modalità chiara', themeToggleTooltipLight: 'Modalità scura',
     langToggleTooltip: 'Cambia lingua', siteLangLabel: 'Lingua sito',
     
@@ -537,7 +517,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'Онлайн', inviteBtn: 'Пригласить', listeningStatus: 'Слушаю...', errorStatus: 'Ошибка',
     synthesizingStatus: (name) => `🔊 ${name} говорит...`,
     inviteModalTitle: 'Пригласить', inviteModalActive: 'сейчас онлайн',
-    copyRoomLinkBtn: 'Копировать', shareBtn: 'Поделиться',
+    copyRoomLinkBtn: 'Копировать', copyRoomCodeBtn: 'Копировать код', shareBtn: 'Поделиться',
     themeToggleTooltipDark: 'Светлая тема', themeToggleTooltipLight: 'Темная тема',
     langToggleTooltip: 'Сменить язык', siteLangLabel: 'Язык сайта',
     
@@ -548,7 +528,7 @@ const translations: Record<string, UITranslations> = {
     videoGridYou: '(Вы)', videoGridScreenShare: 'Экран', videoGridExpand: 'Полный экран',
     videoGridWaiting: 'Ожидание...', videoGridSharePrompt: 'Поделитесь ссылкой',
     tabChat: 'Чат', tabTranscript: 'Текст', tabParticipants: 'Участники',
-    chatTitle: 'Чат', chatAutoTranslate: 'Перевод', chatEmpty: 'Нет сообщений', chatStart: 'Начните!',
+    chatTitle: 'Chat', chatAutoTranslate: 'Перевод', chatEmpty: 'Нет сообщений', chatStart: 'Начните!',
     chatTranslationLabel: 'Перевод:', chatTranslating: 'Перевод...', chatInputPlaceholder: 'Сообщение...',
     transcriptTitle: 'Текст', transcriptExportTooltip: 'Скачать', transcriptExportBtn: 'Скачать',
     transcriptEmpty: 'Пусто', transcriptStart: 'Начните говорить',
@@ -564,7 +544,7 @@ const translations: Record<string, UITranslations> = {
     featuresLabel: '// Özellikler', footerDesc: 'Çevirili toplantılar.',
     feat1Title: 'HD Video', feat1Desc: 'Yüksek kalite',
     feat2Title: 'Ses Çevirisi', feat2Desc: 'Kendi dilinde konuş',
-    feat3Title: 'Ekran Paylaşımı', feat3Desc: 'Ekranı paylaş',
+    feat3Title: 'Ekran Paylaşımı', feat3Desc: 'Ekراًى paylaş',
     feat4Title: 'Sohbet', feat4Desc: 'Çevirili mesajlaşma',
     feat5Title: '13+ Dil', feat5Desc: 'Türkçe, İngilizce vs.',
     feat6Title: 'Hızlı', feat6Desc: 'Anında yapay zeka',
@@ -578,7 +558,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'Çevrimiçi', inviteBtn: 'Davet', listeningStatus: 'Dinliyor...', errorStatus: 'Hata',
     synthesizingStatus: (name) => `🔊 ${name} konuşuyor...`,
     inviteModalTitle: 'Davet et', inviteModalActive: 'çevrimiçi',
-    copyRoomLinkBtn: 'Kopyala', shareBtn: 'Paylaş',
+    copyRoomLinkBtn: 'Kopyala', copyRoomCodeBtn: 'Oda Kodunu Kopyala', shareBtn: 'Paylaş',
     themeToggleTooltipDark: 'Açık tema', themeToggleTooltipLight: 'Koyu tema',
     langToggleTooltip: 'Dil değiştir', siteLangLabel: 'Site dili',
     
@@ -591,7 +571,7 @@ const translations: Record<string, UITranslations> = {
     tabChat: 'Sohbet', tabTranscript: 'Döküm', tabParticipants: 'Kişiler',
     chatTitle: 'Sohbet', chatAutoTranslate: 'Çevir', chatEmpty: 'Mesaj yok', chatStart: 'Başla!',
     chatTranslationLabel: 'Çeviri:', chatTranslating: 'Çevriliyor...', chatInputPlaceholder: 'Mesaj...',
-    transcriptTitle: 'Döküm', transcriptExportTooltip: 'İndir', transcriptExportBtn: 'İndir',
+    transcriptTitle: 'Döküm', transcriptExportTooltip: 'İndir', transcriptExportBtn: 'İندير',
     transcriptEmpty: 'Yok', transcriptStart: 'Konuşmaya başla',
     participantsTitle: 'Kişiler', participantsEmpty: 'Kimse yok', participantYou: 'Sen', participantHost: 'Kurucu', participantGuest: 'Misafir', participantUnknown: 'Bilinmeyen',
     statusScreenShare: 'Ekran', statusCamOn: 'Kamera açık', statusCamOff: 'Kamera kapalı', statusMicOn: 'Mikrofon açık', statusMicOff: 'Mikrofon kapalı',
@@ -619,7 +599,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: '在线', inviteBtn: '邀请', listeningStatus: '倾听中...', errorStatus: '错误',
     synthesizingStatus: (name) => `🔊 ${name} 正在说话...`,
     inviteModalTitle: '邀请', inviteModalActive: '当前在线',
-    copyRoomLinkBtn: '复制', shareBtn: '分享',
+    copyRoomLinkBtn: '复制', copyRoomCodeBtn: '复制房号', shareBtn: '分享',
     themeToggleTooltipDark: '亮色', themeToggleTooltipLight: '暗色',
     langToggleTooltip: '更改语言', siteLangLabel: '网站语言',
     
@@ -660,7 +640,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: 'オンライン', inviteBtn: '招待', listeningStatus: '聞き取り中...', errorStatus: 'エラー',
     synthesizingStatus: (name) => `🔊 ${name} が話しています...`,
     inviteModalTitle: '招待', inviteModalActive: 'オンライン',
-    copyRoomLinkBtn: 'コピー', shareBtn: '共有',
+    copyRoomLinkBtn: 'コピー', copyRoomCodeBtn: 'ルームコードをコピー', shareBtn: '共有',
     themeToggleTooltipDark: 'ライトモード', themeToggleTooltipLight: 'ダークモード',
     langToggleTooltip: '言語変更', siteLangLabel: 'サイト言語',
     
@@ -701,7 +681,7 @@ const translations: Record<string, UITranslations> = {
     onlineCount: '온라인', inviteBtn: '초대', listeningStatus: '듣는 중...', errorStatus: '오류',
     synthesizingStatus: (name) => `🔊 ${name} 말하는 중...`,
     inviteModalTitle: '초대', inviteModalActive: '현재 온라인',
-    copyRoomLinkBtn: '복사', shareBtn: '공유',
+    copyRoomLinkBtn: '복사', copyRoomCodeBtn: '방 코드 복사', shareBtn: '공유',
     themeToggleTooltipDark: '라이트 모드', themeToggleTooltipLight: '다크 모드',
     langToggleTooltip: '언어 변경', siteLangLabel: '사이트 언어',
     
@@ -736,13 +716,13 @@ const translations: Record<string, UITranslations> = {
     roomCodeLabel: 'कोड', nameLabel: 'आपका नाम', hostNamePlaceholder: 'मेजबान', guestNamePlaceholder: 'आपका नाम',
     myLanguageLabel: 'आपकी भाषा', partnerLanguageLabel: 'साथी की भाषा',
     startButtonHost: 'बनाएं और कनेक्ट करें', startButtonGuest: 'अभी शामिल हों',
-    waitingForGuest: 'प्रतीक्षा हो रही है...', connectingSecurely: 'कनेक्ट हो रहा है...',
+    waitingForGuest: 'प्रतीक्षा हो रही है...', connectingSecurely: 'कनेكت हो रहा है...',
     establishingP2P: 'P2P कनेक्शन स्थापित हो रहा है...',
     shareLinkPrompt: 'लिंक साझा करें:', copyLink: 'लिंक कॉपी करें', linkCopied: '✓ कॉपी हो गया',
-    onlineCount: 'ऑनलाइन', inviteBtn: 'आमंत्रित करें', listeningStatus: 'सुन रहा है...', errorStatus: 'त्रुटि',
+    onlineCount: 'ऑनलाइन', inviteBtn: 'आमंत्रित करें', listeningStatus: 'सुन रहा है...', errorStatus: 'त्रुटي',
     synthesizingStatus: (name) => `🔊 ${name} बोल रहा है...`,
     inviteModalTitle: 'आमंत्रित करें', inviteModalActive: 'अभी ऑनलाइन',
-    copyRoomLinkBtn: 'कॉपी करें', shareBtn: 'साझा करें',
+    copyRoomLinkBtn: 'कॉपी करें', copyRoomCodeBtn: 'रूम कोड कॉपी करें', shareBtn: 'साझा करें',
     themeToggleTooltipDark: 'लाइट मोड', themeToggleTooltipLight: 'डार्क मोड',
     langToggleTooltip: 'भाषा बदलें', siteLangLabel: 'साइट भाषा',
     
@@ -754,10 +734,10 @@ const translations: Record<string, UITranslations> = {
     videoGridWaiting: 'प्रतीक्षा हो रही है...', videoGridSharePrompt: 'शुरू करने के लिए लिंक साझा करें',
     tabChat: 'चैट', tabTranscript: 'प्रतिलेख', tabParticipants: 'प्रतिभागी',
     chatTitle: 'चैट', chatAutoTranslate: 'अनुवाद', chatEmpty: 'कोई संदेश नहीं', chatStart: 'शुरू करें!',
-    chatTranslationLabel: 'अनुवाद:', chatTranslating: 'अनुवाद हो रहा है...', chatInputPlaceholder: 'संदेश...',
+    chatTranslationLabel: HindiTranslationLabel, chatTranslating: 'अनुवाद हो रहा है...', chatInputPlaceholder: 'संदेश...',
     transcriptTitle: 'प्रतिलेख', transcriptExportTooltip: 'निर्यात', transcriptExportBtn: 'निर्यात',
     transcriptEmpty: 'कोई प्रतिलेख नहीं', transcriptStart: 'बोलना शुरू करें',
-    participantsTitle: 'प्रतिभागी', participantsEmpty: 'कोई प्रतिभागी नहीं', participantYou: 'आप', participantHost: 'मेजबान', participantGuest: 'अतिथि', participantUnknown: 'अज्ञात',
+    participantsTitle: HindiParticipantsTitle, participantsEmpty: 'कोई प्रतिभागी नहीं', participantYou: 'आप', participantHost: 'मेजबान', participantGuest: HindiParticipantGuest, participantUnknown: 'अज्ञात',
     statusScreenShare: 'स्क्रीन शेयर हो रही है', statusCamOn: 'कैमरा ऑन', statusCamOff: 'कैमरा ऑफ', statusMicOn: 'माइक ऑन', statusMicOff: 'माइक ऑफ',
   }
 };
@@ -765,5 +745,5 @@ const translations: Record<string, UITranslations> = {
 /** Returns translations for the given language code, falls back to English for missing keys */
 export function getTranslations(langCode: string): UITranslations {
   const selected = translations[langCode] || translations['en'];
-  return { ...translations['en'], ...selected };
+  return { ...translations['en'], ...selected } as UITranslations;
 }

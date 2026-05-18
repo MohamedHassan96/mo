@@ -96,24 +96,27 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         setCapabilities(videoTrack.getCapabilities());
       }
 
-      let newStream: MediaStream;
       if (localStream) {
+        // Clear existing video tracks
         localStream.getVideoTracks().forEach(track => {
           track.stop();
           localStream.removeTrack(track);
         });
 
-        newStream = new MediaStream([
+        // Create a NEW MediaStream instance to trigger React state update in VideoGrid
+        const newStream = new MediaStream([
           ...localStream.getAudioTracks(),
           videoTrack
         ]);
+        
+        setLocalStream(newStream);
+        setCameraOn(true);
+        return newStream;
       } else {
-        newStream = stream;
+        setLocalStream(stream);
+        setCameraOn(true);
+        return stream;
       }
-      
-      setLocalStream(newStream);
-      setCameraOn(true);
-      return newStream;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to access camera';
       setCameraError(message);
@@ -152,23 +155,22 @@ export function useMediaDevices(): UseMediaDevicesReturn {
       const audioTrack = stream.getAudioTracks()[0];
       audioTrack.enabled = isMicOn;
 
-      let newStream: MediaStream;
       if (localStream) {
         localStream.getAudioTracks().forEach(track => {
           track.stop();
           localStream.removeTrack(track);
         });
 
-        newStream = new MediaStream([
+        const newStream = new MediaStream([
           ...localStream.getVideoTracks(),
           audioTrack
         ]);
+        setLocalStream(newStream);
+        return newStream;
       } else {
-        newStream = stream;
+        setLocalStream(stream);
+        return stream;
       }
-
-      setLocalStream(newStream);
-      return newStream;
     } catch (err) {
       console.error('Failed to start audio:', err);
       return null;
@@ -197,6 +199,8 @@ export function useMediaDevices(): UseMediaDevicesReturn {
         track.stop();
         localStream.removeTrack(track);
       });
+      
+      // Create a NEW MediaStream with only audio to trigger UI update
       const audioOnlyStream = new MediaStream([...localStream.getAudioTracks()]);
       setLocalStream(audioOnlyStream);
     }
@@ -212,13 +216,21 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   const replaceVideoTrack = useCallback((track: MediaStreamTrack | null) => {
     if (!localStream) return;
+    
     localStream.getVideoTracks().forEach(vt => {
       vt.stop();
       localStream.removeTrack(vt);
     });
-    if (track) localStream.addTrack(track);
+
+    if (track) {
+      localStream.addTrack(track);
+    }
+    
+    // Create new stream to force re-render
     setLocalStream(new MediaStream(localStream.getTracks()));
   }, [localStream, setLocalStream]);
+
+  // ─── Screen Share ─────────────────────────────────────────────
 
   const startScreenShare = useCallback(async (): Promise<MediaStream | null> => {
     try {
@@ -255,9 +267,19 @@ export function useMediaDevices(): UseMediaDevicesReturn {
   }, [isScreenSharing, startScreenShare, stopScreenShare]);
 
   return {
-    startCamera, stopCamera, toggleCamera, replaceVideoTrack, setZoom,
-    startAudio, stopAudio,
-    startScreenShare, stopScreenShare, toggleScreenShare,
-    getDevices, cameraError, screenShareError, capabilities
+    startCamera,
+    stopCamera,
+    toggleCamera,
+    replaceVideoTrack,
+    setZoom,
+    startAudio,
+    stopAudio,
+    startScreenShare,
+    stopScreenShare,
+    toggleScreenShare,
+    getDevices,
+    cameraError,
+    screenShareError,
+    capabilities
   };
 }

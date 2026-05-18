@@ -14,7 +14,7 @@ interface RouteState {
 
 function parseHash(): RouteState {
   const hash = window.location.hash;
-  
+
   // Match #/room/ROOMID
   const roomMatch = hash.match(/^#\/room\/([A-Za-z0-9-]+)$/);
   if (roomMatch) {

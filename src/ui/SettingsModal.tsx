@@ -3,8 +3,8 @@ import { useConfigStore } from '@/state/configStore';
 import { useRoomStore } from '@/state/roomStore';
 import { useMediaDevices } from '@/app-hooks/useMediaDevices';
 import { getTranslations } from '@/config/i18n';
-import { ELEVENLABS_VOICES } from '@/services/tts';
-import { X, Volume2, CheckCircle, Sparkles, Key, Languages, Camera, Mic, Monitor, RefreshCw } from 'lucide-react';
+import { ELEVENLABS_VOICES, getElevenLabsVoices } from '@/services/tts';
+import { X, Volume2, CheckCircle, Sparkles, Key, Languages, Camera, Mic, RefreshCw, User } from 'lucide-react';
 import type { TTSProvider } from '@/types';
 
 export default function SettingsModal() {
@@ -21,6 +21,8 @@ export default function SettingsModal() {
 
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
+  const [elevenLabsVoices, setElevenLabsVoices] = useState<any[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
 
   const fetchDevices = async () => {
     setLoadingDevices(true);
@@ -29,11 +31,22 @@ export default function SettingsModal() {
     setLoadingDevices(false);
   };
 
+  const fetchVoices = async () => {
+    if (!config.elevenLabsApiKey) return;
+    setLoadingVoices(true);
+    const voices = await getElevenLabsVoices(config.elevenLabsApiKey);
+    setElevenLabsVoices(voices);
+    setLoadingVoices(false);
+  };
+
   useEffect(() => {
     if (showSettings) {
       fetchDevices();
+      if (config.elevenLabsApiKey) {
+        fetchVoices();
+      }
     }
-  }, [showSettings]);
+  }, [showSettings, config.elevenLabsApiKey]);
 
   const videoDevices = devices.filter(d => d.kind === 'videoinput');
   const audioInputDevices = devices.filter(d => d.kind === 'audioinput');
@@ -62,7 +75,7 @@ export default function SettingsModal() {
   if (!showSettings) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#064E3B]lack/60 backdrop-blur-sm" dir={['ar', 'fa', 'ur'].includes(uiLanguage) ? 'rtl' : 'ltr'}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" dir={['ar', 'fa', 'ur'].includes(uiLanguage) ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-[#0d1b2a] rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t.settingsTitle}</h2>
@@ -161,6 +174,15 @@ export default function SettingsModal() {
 
           <div className="h-px bg-gray-100 dark:bg-white/5" />
 
+          {/* Status Section */}
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+            <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div>
+              <p className="font-bold text-green-700 dark:text-green-300">{t.settingsReady}</p>
+              <p className="text-xs text-green-600 dark:text-green-400">{t.settingsReadyDesc}</p>
+            </div>
+          </div>
+
           {/* Gemini API Key */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
@@ -201,9 +223,21 @@ export default function SettingsModal() {
 
           {/* ElevenLabs API Key */}
           <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
-              <Volume2 className="w-4 h-4 text-lime-600" />
-              {t.settingsElevenKey}
+            <label className="flex items-center justify-between text-sm font-bold text-gray-900 dark:text-white">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-lime-600" />
+                {t.settingsElevenKey}
+              </div>
+              {config.elevenLabsApiKey && (
+                <button 
+                  onClick={fetchVoices}
+                  disabled={loadingVoices}
+                  className="text-[10px] text-lime-600 hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingVoices ? 'animate-spin' : ''}`} />
+                  تحديث الأصوات
+                </button>
+              )}
             </label>
             <div className="relative">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -217,6 +251,27 @@ export default function SettingsModal() {
             </div>
             <p className="text-[10px] text-gray-500">مطلوب لتحويل النص إلى صوت (TTS)</p>
           </div>
+
+          {/* ElevenLabs Voice Selection */}
+          {config.elevenLabsApiKey && elevenLabsVoices.length > 0 && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white">
+                <User className="w-4 h-4 text-lime-600" />
+                اختر الصوت (من مكتبة ElevenLabs)
+              </label>
+              <select
+                value={config.elevenLabsVoiceId}
+                onChange={(e) => setConfig({ elevenLabsVoiceId: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm focus:ring-2 focus:ring-lime-600 outline-none dark:text-white"
+              >
+                {elevenLabsVoices.map(voice => (
+                  <option key={voice.voice_id} value={voice.voice_id}>
+                    {voice.name} ({voice.labels?.language || 'Global'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* مزود الصوت */}
 
@@ -249,8 +304,8 @@ export default function SettingsModal() {
             </p>
           </div>
 
-          {/* معلومات ElevenLabs */}
-          {config.ttsProvider === 'elevenlabs' && (
+          {/* معلومات ElevenLabs (Legacy view if no dynamic voices yet) */}
+          {config.ttsProvider === 'elevenlabs' && elevenLabsVoices.length === 0 && (
             <div className="p-4 bg-lime-50 dark:bg-lime-900/20 rounded-xl border border-lime-200 dark:border-lime-800">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-5 h-5 text-lime-600" />

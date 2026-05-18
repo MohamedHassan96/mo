@@ -22,7 +22,16 @@ export async function transcribeAudio(
   }
 
   try {
-    // Try Gemini first
+    if (!apiKey || apiKey === 'server' || apiKey.startsWith('sk_')) {
+      return transcribeAudioServer(audioBlob, language, apiKey.startsWith('sk_') ? apiKey : '');
+    }
+
+    if (apiKey.startsWith('gsk_')) {
+      console.log(`🎤 Transcribing audio with Groq Whisper (${(audioBlob.size / 1024).toFixed(1)}KB, ${language})...`);
+      return transcribeAudioGroq(audioBlob, apiKey, language);
+    }
+
+    // Try Gemini when a Gemini key is configured
     console.log(`🎤 Transcribing audio with Gemini (${(audioBlob.size / 1024).toFixed(1)}KB, ${language})...`);
     const text = await transcribeAudioGemini(audioBlob, apiKey, language);
     
@@ -31,16 +40,37 @@ export async function transcribeAudio(
       return { text, language };
     }
 
-    // Fallback to Groq if Gemini fails or returns empty
-    if (apiKey.startsWith('gsk_')) {
-      return transcribeAudioGroq(audioBlob, apiKey, language);
-    }
-    
     return { text: '', language };
   } catch (error) {
     console.error('STT Error:', error);
-    return { text: '', language };
+    throw error;
   }
+}
+
+async function transcribeAudioServer(
+  audioBlob: Blob,
+  language: string,
+  elevenLabsApiKey = ''
+): Promise<STTResult> {
+  console.log(`🎤 Transcribing audio via server STT (${(audioBlob.size / 1024).toFixed(1)}KB, ${language})...`);
+  const response = await fetch(`/api/stt?language=${encodeURIComponent(language)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': audioBlob.type || 'audio/webm',
+      ...(elevenLabsApiKey ? { 'x-elevenlabs-api-key': elevenLabsApiKey } : {}),
+    },
+    body: audioBlob,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Server STT failed: ${response.status}`);
+  }
+
+  return {
+    text: data.text?.trim() ?? '',
+    language: data.language || language,
+  };
 }
 
 async function transcribeAudioGroq(

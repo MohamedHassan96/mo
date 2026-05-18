@@ -3,7 +3,7 @@
  * يستخدم نماذج سريعة للترجمة اللحظية
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useRoomStore } from '@/state/roomStore';
 import { useConfigStore } from '@/state/configStore';
@@ -22,11 +22,16 @@ interface TranslationOptions {
 export function useRealtimeTranslation() {
   const { addTranscript, updateTranscript, setProcessingStatus, audioPlaybackEnabled } = useRoomStore();
   const config = useConfigStore((state) => state.config);
-  const { groqApiKey, geminiApiKey, elevenLabsApiKey, ttsProvider } = config;
+  const { groqApiKey, geminiApiKey, elevenLabsApiKey, elevenLabsVoiceId, ttsProvider } = config;
 
   // قائمة انتظار TTS لمنع التداخل
   const ttsQueueRef = useRef<(() => Promise<void>)[]>([]);
   const ttsPlayingRef = useRef(false);
+  const audioPlaybackEnabledRef = useRef(audioPlaybackEnabled);
+
+  useEffect(() => {
+    audioPlaybackEnabledRef.current = audioPlaybackEnabled;
+  }, [audioPlaybackEnabled]);
 
   const drainTTSQueue = useCallback(async () => {
     if (ttsPlayingRef.current) return;
@@ -47,12 +52,18 @@ export function useRealtimeTranslation() {
 
     return new Promise<void>((resolve) => {
       const task = async () => {
+        if (!audioPlaybackEnabledRef.current) {
+          resolve();
+          return;
+        }
+
         try {
           const blob = await synthesizeSpeech({
             text,
             language,
             provider: ttsProvider,
             elevenLabsApiKey: elevenLabsApiKey,
+            elevenLabsVoiceId: elevenLabsVoiceId,
           });
 
           if (blob) {
@@ -67,7 +78,7 @@ export function useRealtimeTranslation() {
       ttsQueueRef.current.push(task);
       drainTTSQueue();
     });
-  }, [audioPlaybackEnabled, drainTTSQueue, elevenLabsApiKey, ttsProvider]);
+  }, [audioPlaybackEnabled, drainTTSQueue, elevenLabsApiKey, elevenLabsVoiceId, ttsProvider]);
 
   // debounce timer لترجمة النصوص المؤقتة تلقائياً
   const interimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,6 +87,17 @@ export function useRealtimeTranslation() {
   const lastCallbackRef = useRef<((entry: TranscriptEntry) => void) | undefined>(undefined);
   // منع تكرار الترجمة: نتتبع النص الأخير الذي تمت ترجمته
   const lastTranslatedTextRef = useRef<string>('');
+
+  const cancelPendingTranslation = useCallback(() => {
+    if (interimTimerRef.current) {
+      clearTimeout(interimTimerRef.current);
+      interimTimerRef.current = null;
+    }
+    lastInterimTextRef.current = '';
+    lastOptionsRef.current = null;
+    lastCallbackRef.current = undefined;
+    lastTranslatedTextRef.current = '';
+  }, []);
 
   // الدالة الفعلية للإرسال (الترجمة والصوت تتم في السيرفر الآن)
   const translateAndSend = useCallback(async (
@@ -98,16 +120,18 @@ export function useRealtimeTranslation() {
         originalLanguage: sourceLanguage,
         translatedText: text, // Default to original
         translatedLanguage: sourceLanguage, // Initially same as source to signal "not yet translated"
+        targetLanguage,
         timestamp: Date.now(),
       };
 
       // Add to local UI immediately
       addTranscript(entry);
 
+      setProcessingStatus({ stage: 'translating', message: 'جاري الترجمة...' });
+
       // Perform translation if API key is available and languages differ
       const activeApiKey = geminiApiKey || groqApiKey;
       if (activeApiKey && sourceLanguage !== targetLanguage) {
-        setProcessingStatus({ stage: 'translating', message: 'جاري الترجمة...' });
         try {
           console.log(`[Translation] Using client-side key for ${sourceLanguage} -> ${targetLanguage}`);
           const result = await translateService(text, sourceLanguage, targetLanguage, geminiApiKey, groqApiKey);
@@ -127,8 +151,8 @@ export function useRealtimeTranslation() {
         }
       }
 
-
-      // Important: Send the (potentially translated) entry to participants
+      // Send the entry to participants.
+      // If no client-side keys, the server will own translation and translated TTS.
       if (onTranslationComplete) {
         console.log(`[Transcript] Broadcasting entry:`, entry);
         onTranslationComplete(entry);
@@ -184,5 +208,5 @@ export function useRealtimeTranslation() {
     }
   }, [translateAndSend, setProcessingStatus]);
 
-  return { processRecognizedText, speakText };
+  return { processRecognizedText, speakText, cancelPendingTranslation };
 }

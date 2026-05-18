@@ -22,6 +22,7 @@ export interface Participant {
   isCameraOn: boolean;
   isScreenSharing: boolean;
   isConnected: boolean;
+  elevenLabsVoiceId?: string;
 }
 
 export interface Room {
@@ -43,6 +44,7 @@ export interface TranscriptEntry {
   originalLanguage: string;
   translatedText: string;
   translatedLanguage: string;
+  targetLanguage?: string;
   timestamp: number;
   audioUrl?: string;
 }

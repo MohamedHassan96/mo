@@ -15,34 +15,34 @@ interface UseSpeechToTextOptions {
  */
 export function useSpeechToText(options: UseSpeechToTextOptions) {
   const { language, onResult, onError } = options;
-  const { geminiApiKey } = useConfigStore(state => state.config);
+  const { geminiApiKey, groqApiKey } = useConfigStore(state => state.config);
+  const apiSpeechKey = geminiApiKey || groqApiKey || 'server';
 
   // Default to Chrome/Web Speech API (highly accurate for Egyptian Arabic dialects, real-time, free)
-  const [provider, setProvider] = useState<'gemini' | 'web'>('web');
+  const [provider, setProvider] = useState<'api' | 'web'>('web');
 
   const wasListeningRef = useRef(false);
 
-  // Automatically fall back to Gemini STT if the browser doesn't support Web Speech API
+  // Automatically fall back to Server STT if the browser doesn't support Web Speech API
   useEffect(() => {
     const win = window as any;
     const isWebSpeechSupported = !!(win.SpeechRecognition || win.webkitSpeechRecognition);
     if (!isWebSpeechSupported && provider === 'web') {
-      console.log('[STT] Web Speech API not supported in this browser, falling back to Gemini STT');
-      setProvider('gemini');
+      console.log('[STT] Web Speech API not supported in this browser, falling back to Server API STT');
+      setProvider('api');
     }
   }, [provider]);
 
-  // Fallback handler if Gemini fails (e.g. invalid API key)
-  const handleGeminiError = useCallback((err: string) => {
-    console.error('[STT] Gemini failed, falling back to Web Speech API:', err);
-    if (provider === 'gemini') {
+  // Fallback handler if API transcription fails (e.g. invalid API key)
+  const handleApiSpeechError = useCallback((err: string) => {
+    console.error('[STT] API transcription failed, falling back to Web Speech API:', err);
+    if (provider === 'api') {
       setProvider('web');
       onError?.(err);
     }
   }, [provider, onError]);
 
-  // Fallback handler if Gemini fails to produce results
-  const handleGeminiResult = useCallback((text: string, isFinal: boolean) => {
+  const handleApiSpeechResult = useCallback((text: string, isFinal: boolean) => {
     if (text) {
       onResult(text, isFinal);
     }
@@ -52,11 +52,11 @@ export function useSpeechToText(options: UseSpeechToTextOptions) {
   const webSpeech = useWebSpeechRecognition(options);
   const geminiSTT = useGeminiSTT({ 
     ...options, 
-    onResult: handleGeminiResult,
-    onError: handleGeminiError
+    onResult: handleApiSpeechResult,
+    onError: handleApiSpeechError
   });
 
-  const activeProvider = provider === 'gemini' && geminiApiKey ? geminiSTT : webSpeech;
+  const activeProvider = provider === 'api' && apiSpeechKey ? geminiSTT : webSpeech;
 
   // Track if we should be listening so we can hot-swap if provider changes
   useEffect(() => {
@@ -74,9 +74,9 @@ export function useSpeechToText(options: UseSpeechToTextOptions) {
   return {
     isListening: activeProvider.isListening,
     isSupported: activeProvider.isSupported,
-    startListening: () => {
+    startListening: (stream?: MediaStream | null) => {
       wasListeningRef.current = true;
-      activeProvider.startListening();
+      activeProvider.startListening(stream);
     },
     stopListening: () => {
       wasListeningRef.current = false;

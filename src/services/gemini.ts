@@ -19,15 +19,16 @@ Translate from ${sourceLanguage} to ${targetLanguage}.
 RULES:
 1. Return ONLY the direct translation. No explanations.
 2. Maintain the EXACT VIBE and SLANG of the speaker.
-3. FOR ARABIC (Target): Use deep Egyptian/White Arabic. Use "إزيك", "عامل إيه", "قشطة", "فل", "ماشي", "يا صاحبي", "يا باشا". AVOID "كيف حالك", "حسناً".
-4. FOR ENGLISH (Target): Use casual, natural slang. Use "What's up", "Bro", "Cool", "I'm down", "Gotcha", "No worries".
+3. FOR ARABIC (Target): Use deep Egyptian/White Arabic. Use "إزيك", "عامل إيه", "قشطة", "فل", "ماشي", "يا صاحبي", "يا باشا", "يا وحش", "على وضعه", "تسلم", "حبيبي". AVOID "كيف حالك", "حسناً".
+4. FOR ENGLISH (Target): Use casual, natural slang. Use "What's up", "Bro", "Cool", "I'm down", "Gotcha", "No worries", "Solid", "Legit".
 
 EXAMPLES:
 - "What's up bro" -> "إيه الكلام يا صاحبي؟"
 - "That's legit" -> "ده على وضعه والله"
 - "I'm down for that" -> "قشطة أنا معاك"
 - "فكك مني" -> "Get off my back"
-- "منور يا وحش" -> "Good to see you, legend"`;
+- "منور يا وحش" -> "Good to see you, legend"
+- "I'm so tired" -> "أنا مقتول من التعب"`;
 
   try {
     const response = await fetch(url, {

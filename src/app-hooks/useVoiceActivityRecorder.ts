@@ -121,16 +121,24 @@ export function useVoiceActivityRecorder({
       };
 
       const bufferLength = analyser.frequencyBinCount;
-      const dataArray    = new Uint8Array(bufferLength);
+      const frequencyData = new Uint8Array(bufferLength);
+      const timeDomainData = new Uint8Array(analyser.fftSize);
       isActiveRef.current = true;
       setIsListening(true);
 
       const loop = () => {
         if (!isActiveRef.current) return;
-        analyser.getByteFrequencyData(dataArray);
-        const avg = dataArray.reduce((s, v) => s + v, 0) / bufferLength;
+        analyser.getByteFrequencyData(frequencyData);
+        analyser.getByteTimeDomainData(timeDomainData);
+        const avg = frequencyData.reduce((s, v) => s + v, 0) / bufferLength;
+        const rms = Math.sqrt(
+          timeDomainData.reduce((sum, value) => {
+            const normalized = (value - 128) / 128;
+            return sum + normalized * normalized;
+          }, 0) / timeDomainData.length
+        );
 
-        if (avg > 15) {
+        if (avg > 8 || rms > 0.015) {
           // ── Voice detected ────────────────────────────────────────
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);

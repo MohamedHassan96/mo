@@ -19,9 +19,9 @@ interface TTSOptions {
 export const ELEVENLABS_VOICES = {
   // العربية المصرية - أصوات مصرية حقيقية
   ar: { 
-    id: 'cjVigY5qzO86Huf0OWal', // صوت مصري - Liam مع لهجة مصرية
-    name: 'Egyptian Arabic',
-    fallbacks: ['onwK4e9ZLuTAKqWW03F9', 'pFZP5JQG7iQjIQuC4Bku']
+    id: 'c06fdbaa06e04b6cbe80fb460336f064', // صوت مصري مخصص
+    name: 'Egyptian Arabic (Premium)',
+    fallbacks: ['pNInz6obpgDQGcFmaJgB', 'cjVigY5qzO86Huf0OWal', 'onwK4e9ZLuTAKqWW03F9']
   },
   
   // الإنجليزية
@@ -51,6 +51,10 @@ export async function synthesizeSpeech(options: TTSOptions): Promise<Blob | null
 
   switch (provider) {
     case 'elevenlabs':
+      if (!options.elevenLabsApiKey) {
+        console.warn('ElevenLabs API key is missing; using browser speech fallback.');
+        return synthesizeSpeechBrowser(options.text, options.language);
+      }
       return synthesizeSpeechElevenLabs(
         options.text,
         options.elevenLabsApiKey || '',
@@ -98,10 +102,11 @@ export async function synthesizeSpeechElevenLabs(
         body: JSON.stringify({
           text,
           model_id: 'eleven_multilingual_v2',
+          language_code: langCode,
           voice_settings: {
-            stability: isArabic ? 0.65 : 0.5,
-            similarity_boost: isArabic ? 0.9 : 0.8,
-            style: isArabic ? 0.45 : 0.3,
+            stability: isArabic ? 0.38 : 0.35,
+            similarity_boost: 0.8,
+            style: isArabic ? 0.7 : 0.65,
             use_speaker_boost: true,
           },
         }),
@@ -196,11 +201,27 @@ export function playAudioBlob(blob: Blob): Promise<void> {
   });
 }
 
-export function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+export async function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   return new Promise((resolve) => {
     const voices = window.speechSynthesis.getVoices();
     if (voices.length > 0) { resolve(voices); return; }
     window.speechSynthesis.onvoiceschanged = () => resolve(window.speechSynthesis.getVoices());
     setTimeout(() => resolve(window.speechSynthesis.getVoices()), 1000);
   });
+}
+
+export async function getElevenLabsVoices(apiKey: string): Promise<any[]> {
+  if (!apiKey) return [];
+  try {
+    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+      method: 'GET',
+      headers: { 'xi-api-key': apiKey },
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.voices || [];
+  } catch (error) {
+    console.error('Error fetching ElevenLabs voices:', error);
+    return [];
+  }
 }

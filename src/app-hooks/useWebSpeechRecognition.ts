@@ -96,7 +96,7 @@ export function useWebSpeechRecognition(options: UseWebSpeechOptions) {
     return r;
   }, [language, continuous, interimResults, onError]);
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((_stream?: MediaStream | null) => {
     if (!isSupported) { onError?.('المتصفح لا يدعم التعرف على الصوت'); return; }
 
     // stop any previous session cleanly

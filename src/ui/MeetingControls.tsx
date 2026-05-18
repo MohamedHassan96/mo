@@ -17,7 +17,6 @@ import {
   Copy,
   Check,
   Settings,
-  ChevronUp,
   Camera,
   RefreshCw,
 } from 'lucide-react';
@@ -86,7 +85,7 @@ export default function MeetingControls({
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: { displaySurface: 'monitor' },
-          audio: true,
+          audio: false,
         });
 
         setLocalScreenStream(stream);
@@ -131,7 +130,7 @@ export default function MeetingControls({
   };
 
   return (
-    <div className="bg-white/80 dark:bg-bg-dark-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-4">
+    <div className="bg-white/80 dark:bg-bg-dark-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 px-3 sm:px-6 py-3 sm:py-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-4">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
@@ -170,7 +169,6 @@ export default function MeetingControls({
               {isCameraOn ? <Video className="w-5 h-5 sm:w-6 sm:h-6" /> : <VideoOff className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
             
-            {/* Quick Toggle for Mobile Flip or Menu */}
             <button 
               onClick={() => {
                 if (window.innerWidth < 640) handleFlipCamera();
@@ -216,7 +214,7 @@ export default function MeetingControls({
           <button
             onClick={handleToggleScreenShare}
             className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${isScreenSharing
-                ? 'bg-brand-neon text-brand-dark border-none'
+                ? 'bg-brand-neon text-brand-dark border-none shadow-lg shadow-brand-neon/20'
                 : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark dark:text-white/90'
               }`}
           >
@@ -241,73 +239,88 @@ export default function MeetingControls({
           </button>
 
           <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => setAudioPlaybackEnabled(!audioPlaybackEnabled)}
-            className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${audioPlaybackEnabled
-                ? 'bg-brand-neon/10 dark:bg-brand-neon/10 hover:bg-brand-neon/20 dark:hover:bg-brand-neon/20 text-brand-muted dark:text-brand-neon'
-                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark/40 dark:text-white/30'
-              }`}
-          >
-            {audioPlaybackEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-          </button>
-
-          <button
-            onClick={toggleSidePanel}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${sidePanelOpen
-                ? 'bg-brand-neon text-brand-dark border-none shadow-lg shadow-brand-neon/20'
-                : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-muted/60 dark:text-white/60'
-              }`}
-          >
-            <MessageSquare className="w-5 h-5" />
-          </button>
-
-          <div className="relative">
             <button
-              onClick={() => setShowMore(!showMore)}
-              className="w-12 h-12 rounded-full bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-muted/60 dark:text-white/60 border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 
-                         flex items-center justify-center transition-all"
+              onClick={() => setAudioPlaybackEnabled(!audioPlaybackEnabled)}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${audioPlaybackEnabled
+                  ? 'bg-brand-neon/10 dark:bg-brand-neon/10 hover:bg-brand-neon/20 dark:hover:bg-brand-neon/20 text-brand-muted dark:text-brand-neon'
+                  : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-dark/40 dark:text-white/30'
+                }`}
             >
-              <MoreVertical className="w-5 h-5" />
+              {audioPlaybackEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
             </button>
 
-            {showMore && (
-              <div className="absolute bottom-full right-0 mb-3 w-60 bg-white dark:bg-bg-dark-900 rounded-[20px] shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
-                <button
-                  onClick={() => {
-                    setAudioPlaybackEnabled(!audioPlaybackEnabled);
-                    setShowMore(false);
-                  }}
-                  className="sm:hidden w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  {audioPlaybackEnabled ? <Volume2 className="w-5 h-5 text-green-500" /> : <VolumeX className="w-5 h-5 text-brand-neon" />}
-                  {audioPlaybackEnabled ? 'كتم صوت الترجمة' : 'تشغيل صوت الترجمة'}
-                </button>
-                <button
-                  onClick={() => {
-                    handleToggleScreenShare();
-                    setShowMore(false);
-                  }}
-                  className="sm:hidden w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  {isScreenSharing ? <MonitorOff className="w-5 h-5 text-brand-neon" /> : <MonitorUp className="w-5 h-5 text-brand-neon" />}
-                  {isScreenSharing ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowSettings(true);
-                    setShowMore(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <Settings className="w-5 h-5 text-brand-neon" />
-                  الإعدادات
-                </button>
-              </div>
-            )}
+            <button
+              onClick={toggleSidePanel}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 ${sidePanelOpen
+                  ? 'bg-brand-neon text-brand-dark border-none shadow-lg shadow-brand-neon/20'
+                  : 'bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-muted/60 dark:text-white/60'
+                }`}
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowMore(!showMore)}
+                className="w-12 h-12 rounded-full bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-brand-muted/60 dark:text-white/60 border border-gray-200 dark:border-white/10 hover:border-brand-neon/50 
+                           flex items-center justify-center transition-all"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              {showMore && (
+                <div className="absolute bottom-full right-0 mb-3 w-60 bg-white dark:bg-bg-dark-900 rounded-[20px] shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setShowSettings(true);
+                      setShowMore(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                  >
+                    <Settings className="w-5 h-5 text-brand-neon" />
+                    الإعدادات
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+      
+      {showMore && (
+        <div className="sm:hidden absolute bottom-full left-4 right-4 mb-4 bg-white dark:bg-bg-dark-900 rounded-[28px] shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2">
+          <button
+            onClick={() => {
+              setAudioPlaybackEnabled(!audioPlaybackEnabled);
+              setShowMore(false);
+            }}
+            className="w-full flex items-center gap-4 px-6 py-5 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 border-b border-gray-100 dark:border-white/5"
+          >
+            {audioPlaybackEnabled ? <Volume2 className="w-5 h-5 text-green-500" /> : <VolumeX className="w-5 h-5 text-brand-neon" />}
+            {audioPlaybackEnabled ? 'كتم صوت الترجمة' : 'تشغيل صوت الترجمة'}
+          </button>
+          <button
+            onClick={() => {
+              toggleSidePanel();
+              setShowMore(false);
+            }}
+            className="w-full flex items-center gap-4 px-6 py-5 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5 border-b border-gray-100 dark:border-white/5"
+          >
+            <MessageSquare className="w-5 h-5 text-brand-neon" />
+            {sidePanelOpen ? 'إغلاق الدردشة' : 'فتح الدردشة'}
+          </button>
+          <button
+            onClick={() => {
+              setShowSettings(true);
+              setShowMore(false);
+            }}
+            className="w-full flex items-center gap-4 px-6 py-5 text-sm font-bold text-emerald-900/70 dark:text-white/70 hover:bg-gray-50 dark:hover:bg-white/5"
+          >
+            <Settings className="w-5 h-5 text-brand-neon" />
+            الإعدادات
+          </button>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
 }

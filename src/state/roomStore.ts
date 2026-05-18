@@ -100,6 +100,13 @@ export const useRoomStore = create<RoomState>()((set) => ({
   remoteStreams: {},
   remoteScreenStreams: {},
 
+  // Device Selection & Quality defaults
+  selectedVideoDevice: '',
+  selectedAudioInputDevice: '',
+  selectedAudioOutputDevice: '',
+  cameraResolution: '720p',
+  isCameraMirrored: true,
+
   createRoom: (roomId, hostId) =>
     set({
       room: {

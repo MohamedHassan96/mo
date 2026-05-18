@@ -14,6 +14,7 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
   const { language, onResult, onError } = options;
   const { localStream } = useRoomStore();
   const { geminiApiKey, groqApiKey } = useConfigStore(state => state.config);
+  const apiSpeechKey = geminiApiKey || groqApiKey || 'server';
   
   const [isListening, setIsListening] = useState(false);
   
@@ -21,10 +22,10 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
   useEffect(() => { onResultRef.current = onResult; }, [onResult]);
 
   const handleSpeechEnd = useCallback(async (audioBase64: string) => {
-    const activeKey = geminiApiKey || groqApiKey;
-    if (!audioBase64 || !activeKey) return;
+    if (!audioBase64) return;
 
     try {
+      // Convert base64 to Blob
       const byteCharacters = atob(audioBase64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -33,15 +34,18 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: 'audio/webm' });
 
-      const result = await transcribeAudio(blob, activeKey, language);
-      if (result && result.text) {
+      const result = await transcribeAudio(blob, apiSpeechKey, language);
+      if (result.text) {
         onResultRef.current(result.text, true);
+      } else {
+        console.warn('[API STT] No text returned');
+        onError?.('No speech text returned');
       }
     } catch (err) {
-      console.error('[STT] Transcription failed:', err);
+      console.error('[API STT] Transcription failed:', err);
       onError?.(err instanceof Error ? err.message : String(err));
     }
-  }, [geminiApiKey, groqApiKey, language, onError]);
+  }, [apiSpeechKey, language, onError]);
 
   const {
     startListening: startVAD,
@@ -51,12 +55,12 @@ export function useGeminiSTT(options: UseGeminiSTTOptions) {
     stream: localStream,
     onSpeechEnd: handleSpeechEnd,
     silenceDelay: 1000,
-    minDecibels: -60,
+    minDecibels: -60, // Increased sensitivity
   });
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback((stream?: MediaStream | null) => {
     setIsListening(true);
-    startVAD();
+    startVAD(stream);
   }, [startVAD]);
 
   const stopListening = useCallback(() => {

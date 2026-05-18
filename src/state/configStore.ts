@@ -18,11 +18,11 @@ interface ConfigState {
 
 // الإعدادات الافتراضية - كل المفاتيح جاهزة
 const DEFAULT_CONFIG: AppConfig = {
-  groqApiKey: '',
-  geminiApiKey: '',
+  groqApiKey: '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',
+  geminiApiKey: 'AIzaSyDXCXhA8x1LoGIN3WeXjb1QjSQ8MMISvxo',
   ttsProvider: 'elevenlabs' as TTSProvider,
-  elevenLabsApiKey: '',
-  elevenLabsVoiceId: '',
+  elevenLabsApiKey: 'sk_7d7d8cef5364e849e17c86cb949a416bf54eefad07437056',
+  elevenLabsVoiceId: 'c06fdbaa06e04b6cbe80fb460336f064',
   xttsUrl: 'http://localhost:8080',
   xttsApiToken: '',
 };

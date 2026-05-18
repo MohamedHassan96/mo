@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getLanguageName, getLanguageDirection } from '@/config/languages';
 import { useConfigStore } from '@/state/configStore';
 import { getTranslations } from '@/config/i18n';
-import { Download, FileText, Volume2, ArrowDown } from 'lucide-react';
+import { Download, FileText, Volume2 } from 'lucide-react';
 import type { TranscriptEntry } from '@/types';
 
 interface TranscriptPanelProps {
@@ -75,8 +75,14 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
         ) : (
           uniqueTranscripts.map((entry) => {
             const isMe = entry.speakerId === myId;
-            // For sender: no translation. For receiver: show both if translation exists.
-            const showTranslation = !isMe && entry.translatedText && entry.translatedText !== entry.originalText;
+            const hasTranslation = Boolean(entry.translatedText && entry.translatedText !== entry.originalText);
+
+            const mainText = hasTranslation ? entry.translatedText : entry.originalText;
+            const mainLang = hasTranslation ? entry.translatedLanguage : entry.originalLanguage;
+            
+            const subText = hasTranslation ? entry.originalText : null;
+            const subLang = (hasTranslation ? entry.originalLanguage : 'en') as string;
+            const originalLabel = uiLanguage === 'ar' ? 'النص الأصلي' : 'Original Text';
 
             return (
               <div key={entry.id} className={`flex flex-col gap-1.5 ${isMe ? 'items-end' : 'items-start'}`}>
@@ -87,29 +93,18 @@ export default function TranscriptPanel({ transcripts, myId }: TranscriptPanelPr
                   <span className="text-[9px] font-bold text-emerald-900/20 dark:text-white/20">{formatTime(entry.timestamp)}</span>
                 </div>
 
-                <div className={`max-w-[90%] rounded-2xl overflow-hidden shadow-sm ${isMe ? 'bg-brand-neon rounded-tr-none' : 'bg-gray-100 dark:bg-white/5 rounded-tl-none'}`}>
-                  <div className="px-4 py-3">
-                    <span className={`text-[9px] font-black uppercase tracking-widest block mb-1 ${isMe ? 'text-brand-dark/40' : 'text-brand-muted/40 dark:text-white/30'}`}>
-                      {getLanguageName(entry.originalLanguage)}
-                    </span>
-                    <p className={`text-sm leading-relaxed font-medium ${isMe ? 'text-brand-dark' : 'text-emerald-950 dark:text-white/95'}`} dir={getLanguageDirection(entry.originalLanguage)}>
-                      {entry.originalText}
-                    </p>
-                  </div>
-
-                  {showTranslation && (
-                    <div className="border-t border-black/5 dark:border-white/5 bg-brand-neon/5">
-                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-black/5 dark:bg-white/5">
-                        <ArrowDown className="w-3 h-3 text-brand-neon" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-brand-neon">
-                          {getLanguageName(entry.translatedLanguage)}
-                        </span>
-                      </div>
-                      <div className="px-4 py-3">
-                        <p className="text-sm leading-relaxed font-black text-brand-dark dark:text-white" dir={getLanguageDirection(entry.translatedLanguage)}>
-                          {entry.translatedText}
-                        </p>
-                      </div>
+                <div className={`max-w-[90%] rounded-2xl overflow-hidden shadow-sm px-4 py-3 ${isMe ? 'bg-brand-neon rounded-tr-none text-brand-dark' : 'bg-gray-100 dark:bg-white/5 rounded-tl-none text-emerald-950 dark:text-white/95'}`}>
+                  <p className="text-sm leading-relaxed font-bold" dir={getLanguageDirection(mainLang)}>
+                    {mainText}
+                  </p>
+                  {hasTranslation && subText && (
+                    <div className="mt-1.5 pt-1.5 border-t border-black/5 dark:border-white/5">
+                      <p className="text-[10px] font-black uppercase tracking-wider opacity-40 mb-0.5">
+                        {originalLabel}
+                      </p>
+                      <p className="text-xs leading-relaxed font-medium opacity-60" dir={getLanguageDirection(subLang)}>
+                        {subText}
+                      </p>
                     </div>
                   )}
                 </div>

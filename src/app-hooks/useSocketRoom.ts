@@ -12,8 +12,8 @@ interface UseSocketRoomProps {
   onChatMessage: (msg: ChatMessage) => void;
   onTranscriptReceived: (entry: TranscriptEntry) => void;
   onTranslatedAudio: (data: {
-    originalId: string; speakerName: string; originalText: string;
-    translatedText: string; translatedLanguage: string; audioBase64: string;
+    originalId: string; speakerId?: string; speakerName: string; speakerRole?: Participant['role']; originalText: string; originalLanguage?: string;
+    translatedText: string; translatedLanguage: string; audioBase64: string; playAudio?: boolean;
   }) => void;
 }
 

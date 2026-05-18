@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useConfigStore } from '@/state/configStore';
-import { Moon, Sun, Languages, ChevronDown, Check } from 'lucide-react';
+import { Moon, Sun, Languages, ChevronDown, Check, Sparkles } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/config/languages';
 import { getTranslations } from '@/config/i18n';
 
@@ -70,6 +70,8 @@ export default function Header({ showBackButton = false, onBack }: HeaderProps) 
 
           {/* Controls */}
           <div className="flex items-center gap-2">
+
+
 
             {/* Theme Toggle */}
             <button

@@ -1,0 +1,115 @@
+export type UITranslations = {
+  // Landing
+  tagline: string;
+  heroTitle: string;
+  heroHighlight: string;
+  heroDesc: string;
+  badgeHD: string;
+  badgeLink: string;
+  badgeTranslate: string;
+  createRoom: string;
+  joinPlaceholder: string;
+  step1: string;
+  step2: string;
+  step3: string;
+  step4: string;
+  featuresLabel: string;
+  footerDesc: string;
+  feat1Title: string; feat1Desc: string;
+  feat2Title: string; feat2Desc: string;
+  feat3Title: string; feat3Desc: string;
+  feat4Title: string; feat4Desc: string;
+  feat5Title: string; feat5Desc: string;
+  feat6Title: string; feat6Desc: string;
+
+  // Room Setup
+  roomSetupTitle: string;
+  roomJoinTitle: string;
+  roomSetupDesc: string;
+  roomCodeLabel: string;
+  nameLabel: string;
+  hostNamePlaceholder: string;
+  guestNamePlaceholder: string;
+  myLanguageLabel: string;
+  partnerLanguageLabel: string;
+  startButtonHost: string;
+  startButtonGuest: string;
+
+  // Connecting
+  waitingForGuest: string;
+  connectingSecurely: string;
+  establishingP2P: string;
+  shareLinkPrompt: string;
+  copyLink: string;
+  linkCopied: string;
+
+  // Active Room
+  onlineCount: string;
+  inviteBtn: string;
+  listeningStatus: string;
+  errorStatus: string;
+  synthesizingStatus: (name: string) => string;
+
+  // Invite Modal
+  inviteModalTitle: string;
+  inviteModalActive: string;
+  copyRoomLinkBtn: string;
+  shareBtn: string;
+
+  // Settings Modal
+  settingsTitle: string;
+  settingsReady: string;
+  settingsReadyDesc: string;
+  settingsAudioProvider: string;
+  settingsEgyptVoice: string;
+  settingsNormalVoice: string;
+  settingsLocalVoice: string;
+  settingsEgyptDesc: string;
+  settingsNormalDesc: string;
+  settingsLocalDesc: string;
+  settingsVoiceId: string;
+  settingsSave: string;
+  settingsGroqKey: string;
+  settingsElevenKey: string;
+
+  // VideoGrid
+  videoGridYou: string;
+  videoGridScreenShare: string;
+  videoGridExpand: string;
+  videoGridWaiting: string;
+  videoGridSharePrompt: string;
+
+  // Panels
+  tabChat: string;
+  tabTranscript: string;
+  tabParticipants: string;
+  chatTitle: string;
+  chatAutoTranslate: string;
+  chatEmpty: string;
+  chatStart: string;
+  chatTranslationLabel: string;
+  chatTranslating: string;
+  chatInputPlaceholder: string;
+  transcriptTitle: string;
+  transcriptExportTooltip: string;
+  transcriptExportBtn: string;
+  transcriptEmpty: string;
+  transcriptStart: string;
+  participantsTitle: string;
+  participantsEmpty: string;
+  participantYou: string;
+  participantHost: string;
+  participantGuest: string;
+  participantUnknown: string;
+  statusScreenShare: string;
+  statusCamOn: string;
+  statusCamOff: string;
+  statusMicOn: string;
+  statusMicOff: string;
+
+  // Header / Common
+  themeToggleTooltipDark: string;
+  themeToggleTooltipLight: string;
+  langToggleTooltip: string;
+  siteLangLabel: string;
+};
