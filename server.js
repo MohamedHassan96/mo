@@ -9,10 +9,28 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ─── HARDCODED CONFIG (PER USER PROMPT & REFERENCE) ─────────────────────────
-const GROQ_API_KEY = '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';
-const ELEVENLABS_API_KEY = 'sk_7d7d8cef5364e849e17c86cb949a416bf54eefad07437056';
-const ELEVENLABS_VOICE_ID = 'c06fdbaa06e04b6cbe80fb460336f064';
+// Load environment variables manually
+try {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, 'utf8');
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
+      if (!process.env[key]) process.env[key] = value;
+    }
+  }
+} catch (e) {
+  console.warn('[Server] Error loading .env:', e.message);
+}
+
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || 'sk_7d7d8cef5364e849e17c86cb949a416bf54eefad07437056';
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 
 console.log(`[TalkBridge Pro] SYSTEM ACTIVE — Operational Logic Synced.`);
 
@@ -81,10 +99,21 @@ RULES:
 }
 
 // ─── CORE PIPELINE: TTS (ELEVENLABS STREAM) ──────────────────────────────────
-async function synthesize(text) {
+async function synthesize(text, language = 'ar') {
   if (!text || text.length < 2) return '';
+
+  const voiceMap = {
+    ar: 'cjVigY5qzO86Huf0OWal', // Egyptian Arabic
+    en: 'EXAVITQu4vr4xnSDxMaL', // Sarah
+    fr: 'VR6AewLTigWG4xSOukaG',
+    de: 'onwK4e9ZLuTAKqWW03F9',
+    es: 'MF3mGyEYCl7XYWbV9V6O'
+  };
+
+  const voiceId = ELEVENLABS_VOICE_ID || voiceMap[language] || voiceMap.en;
+
   try {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`, {
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -94,8 +123,11 @@ async function synthesize(text) {
     });
     if (res.ok) {
       const buffer = await res.arrayBuffer();
-      console.log(`[Bridge] Audio: ${buffer.byteLength} bytes generated`);
+      console.log(`[Bridge] Audio: ${buffer.byteLength} bytes generated using voice ${voiceId} for language ${language}`);
       return Buffer.from(buffer).toString('base64');
+    } else {
+      const errText = await res.text();
+      console.error(`[Bridge] TTS API Error:`, res.status, errText);
     }
   } catch (e) { console.error('[Bridge] TTS Failure:', e.message); }
   return '';
@@ -130,7 +162,7 @@ io.on('connection', (socket) => {
       (async () => {
         try {
           const trans = await translate(transcriptEntry.originalText, transcriptEntry.originalLanguage, u.language);
-          const audio = await synthesize(trans);
+          const audio = await synthesize(trans, u.language);
           
           io.to(u.socketId).emit('translated-audio', {
             originalId: transcriptEntry.id,

@@ -32,6 +32,7 @@ loadLocalEnv();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 
 const LANG_NAMES: Record<string, string> = {
   ar: 'Arabic', en: 'English', fr: 'French', de: 'German',
@@ -122,7 +123,8 @@ async function generateTTS(text: string, language: string): Promise<string> {
     throw new Error('ELEVENLABS_API_KEY is not configured');
   }
   let voiceId: string;
-  if (language === 'ar') voiceId = 'cjVigY5qzO86Huf0OWal';
+  if (ELEVENLABS_VOICE_ID) voiceId = ELEVENLABS_VOICE_ID;
+  else if (language === 'ar') voiceId = 'cjVigY5qzO86Huf0OWal';
   else if (language === 'fr') voiceId = 'VR6AewLTigWG4xSOukaG';
   else if (language === 'de') voiceId = 'onwK4e9ZLuTAKqWW03F9';
   else if (language === 'es') voiceId = 'MF3mGyEYCl7XYWbV9V6O';

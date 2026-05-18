@@ -17,11 +17,20 @@ export function useSpeechToText(options: UseSpeechToTextOptions) {
   const { language, onResult, onError } = options;
   const { geminiApiKey } = useConfigStore(state => state.config);
 
-  const [provider, setProvider] = useState<'gemini' | 'web'>(
-    geminiApiKey ? 'gemini' : 'web'
-  );
+  // Default to Chrome/Web Speech API (highly accurate for Egyptian Arabic dialects, real-time, free)
+  const [provider, setProvider] = useState<'gemini' | 'web'>('web');
 
   const wasListeningRef = useRef(false);
+
+  // Automatically fall back to Gemini STT if the browser doesn't support Web Speech API
+  useEffect(() => {
+    const win = window as any;
+    const isWebSpeechSupported = !!(win.SpeechRecognition || win.webkitSpeechRecognition);
+    if (!isWebSpeechSupported && provider === 'web') {
+      console.log('[STT] Web Speech API not supported in this browser, falling back to Gemini STT');
+      setProvider('gemini');
+    }
+  }, [provider]);
 
   // Fallback handler if Gemini fails (e.g. invalid API key)
   const handleGeminiError = useCallback((err: string) => {
