@@ -72,6 +72,7 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
   const { processRecognizedText } = useRealtimeTranslation();
   const {
     participants, isMicOn, isCameraOn: isCameraOnStore, localStream, sidePanelOpen,
+    processingStatus, // Fix: Destructure processingStatus
     setMicOn, setCameraOn, addParticipant, updateParticipant, removeParticipant,
     addChatMessage, setMyId, setProcessingStatus, createRoom, leaveRoom, setRemoteStream
   } = useRoomStore();
@@ -123,6 +124,7 @@ function RoomPageContent({ roomId, role, onLeave }: RoomPageProps) {
     onParticipantUpdate: (p) => updateParticipant(p.id, p),
     onParticipantLeft: (pid) => removeParticipant(pid),
     onTranscriptReceived: (tr) => useRoomStore.getState().addTranscript(tr),
+    onConnectionChange: (connected) => { if (connected) console.log('📡 Peer Connected'); }
   });
 
   const handleSpeechResult = useCallback(async (text: string, isFinal: boolean) => {
