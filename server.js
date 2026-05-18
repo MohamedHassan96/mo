@@ -9,18 +9,18 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ─── HARDCODED CONFIG (CRITICAL) ─────────────────────────────────────────────
+// ─── CRITICAL: HARDCODED CONFIG (ULTRA-STABLE) ────────────────────────────────
 const GROQ_API_KEY = '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';
 const ELEVENLABS_API_KEY = 'sk_7d7d8cef5364e849e17c86cb949a416bf54eefad07437056';
 const ELEVENLABS_VOICE_ID = 'c06fdbaa06e04b6cbe80fb460336f064';
 
-console.log(`[TalkBridge Pro] Starting Server with Hardcoded APIs...`);
+console.log(`[TalkBridge Pro] REINFORCED AUDIO BRIDGE STARTING...`);
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-app.get('/api/health', (req, res) => res.json({ ok: true, bridge: 'active' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, status: 'synced' }));
 
 const distPath = path.join(__dirname, 'dist');
 const indexPath = path.join(distPath, 'index.html');
@@ -39,27 +39,17 @@ const LANG_NAMES = {
   es: 'Spanish', it: 'Italian', pt: 'Portuguese', ru: 'Russian',
   zh: 'Chinese', ja: 'Japanese', ko: 'Korean', tr: 'Turkish',
   nl: 'Dutch', pl: 'Polish', hi: 'Hindi', fa: 'Persian',
-  uk: 'Ukrainian', ur: 'Urdu', he: 'Hebrew',
 };
 
 function cleanText(v) {
   return String(v || '').trim().replace(/^["'«»]|["'«»]$/g, '').replace(/^(Translation|الترجمة|ترجمة):\s*/i, '').trim();
 }
 
-// ─── TRANSLATION ENGINE (GROQ) ──────────────────────────────────────────────
+// ─── OPTIMIZED TRANSLATION ───────────────────────────────────────────────────
 async function translate(text, src, tgt) {
   if (!text || src === tgt) return text;
-  const srcN = LANG_NAMES[src] || src;
-  const tgtN = LANG_NAMES[tgt] || tgt;
-
   try {
-    const prompt = `Professional real-time SLANG-AWARE translator. ${srcN} to ${tgtN}.
-RULES:
-1. ONLY return the direct translation.
-2. Maintain VIBE.
-3. FOR ARABIC: Use deep Egyptian slang (White Arabic). Use "قشطة", "يا باشا", "فل". NO "كيف حالك".
-4. FOR ENGLISH: Use casual slang.`;
-
+    const prompt = `Professional SLANG-AWARE translator. ${LANG_NAMES[src]||src} to ${LANG_NAMES[tgt]||tgt}. Return ONLY the direct translation. For Arabic: use Egyptian slang.`;
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
@@ -69,38 +59,42 @@ RULES:
         temperature: 0.1,
       }),
     });
-
     if (res.ok) {
       const data = await res.json();
-      const out = cleanText(data.choices?.[0]?.message?.content);
-      console.log(`[Bridge] ${src}->${tgt}: "${text}" -> "${out}"`);
-      return out || text;
+      return cleanText(data.choices?.[0]?.message?.content) || text;
     }
   } catch (e) { console.error('[Bridge] Trans Error:', e.message); }
   return text;
 }
 
-// ─── AUDIO ENGINE (ELEVENLABS) ──────────────────────────────────────────────
+// ─── REINFORCED TTS (ELEVENLABS) ──────────────────────────────────────────────
 async function synthesize(text) {
-  if (!text) return '';
+  if (!text || text.length < 2) return '';
   try {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`, {
+    console.log(`[TTS] Requesting ElevenLabs for: "${text.substring(0, 20)}..."`);
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`, {
       method: 'POST',
       headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text, model_id: 'eleven_multilingual_v2',
-        voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.3 }
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.0, use_speaker_boost: true }
       }),
     });
+
     if (res.ok) {
-      const buf = await res.arrayBuffer();
-      return Buffer.from(buf).toString('base64');
+      const buffer = await res.arrayBuffer();
+      console.log(`[TTS] Success: ${buffer.byteLength} bytes generated`);
+      return Buffer.from(buffer).toString('base64');
+    } else {
+      const err = await res.text();
+      console.error(`[TTS] ElevenLabs Failed (${res.status}):`, err);
     }
-  } catch (e) { console.error('[Bridge] TTS Error:', e.message); }
+  } catch (e) { console.error('[TTS] Network Error:', e.message); }
   return '';
 }
 
-// ─── SOCKET PIPELINE ────────────────────────────────────────────────────────
+// ─── SOCKET PIPELINE (THE BRIDGE) ───────────────────────────────────────────
 io.on('connection', (socket) => {
   socket.on('join-room', ({ roomId, participant }, cb) => {
     const rid = roomId.trim().toLowerCase();
@@ -114,19 +108,35 @@ io.on('connection', (socket) => {
 
   socket.on('raw-transcript', async ({ roomId, transcriptEntry }) => {
     const rid = roomId.trim().toLowerCase();
-    io.to(rid).emit('transcript-update', { transcriptEntry }); // Instant update
     
-    const users = Object.values(rooms[rid] || {});
-    for (const u of users) {
-      if (u.socketId === socket.id) continue; // Skip sender
+    // 1. Broadcast text immediately for visual feedback
+    io.to(rid).emit('transcript-update', { transcriptEntry });
+    
+    // 2. Multi-Target Translation & TTS Bridge
+    const others = Object.values(rooms[rid] || {}).filter(u => u.socketId !== socket.id);
+    
+    for (const u of others) {
       (async () => {
-        const trans = await translate(transcriptEntry.originalText, transcriptEntry.originalLanguage, u.language);
-        const audio = await synthesize(trans);
-        io.to(u.socketId).emit('translated-audio', {
-          originalId: transcriptEntry.id, speakerName: transcriptEntry.speakerName,
-          originalText: transcriptEntry.originalText, translatedText: trans,
-          translatedLanguage: u.language, audioBase64: audio
-        });
+        try {
+          const trans = await translate(transcriptEntry.originalText, transcriptEntry.originalLanguage, u.language);
+          const audio = await synthesize(trans);
+          
+          if (audio) {
+            console.log(`[Bridge] Sending Audio to: ${u.name} (${u.language})`);
+            io.to(u.socketId).emit('translated-audio', {
+              originalId: transcriptEntry.id, speakerName: transcriptEntry.speakerName,
+              originalText: transcriptEntry.originalText, translatedText: trans,
+              translatedLanguage: u.language, audioBase64: audio
+            });
+          } else {
+            // Fallback: Send only text if TTS fails
+            io.to(u.socketId).emit('translated-audio', {
+              originalId: transcriptEntry.id, speakerName: transcriptEntry.speakerName,
+              originalText: transcriptEntry.originalText, translatedText: trans,
+              translatedLanguage: u.language, audioBase64: ''
+            });
+          }
+        } catch (err) { console.error(`[Bridge] Processing Error for ${u.name}:`, err.message); }
       })();
     }
   });
@@ -136,7 +146,7 @@ io.on('connection', (socket) => {
     const users = Object.values(rooms[rid] || {});
     for (const u of users) {
       if (u.socketId === socket.id) {
-        socket.emit('chat-message', { message }); // Confirmation to sender
+        socket.emit('chat-message', { message });
         continue;
       }
       (async () => {
